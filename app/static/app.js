@@ -1,18 +1,3 @@
-const workspace =
-    document.getElementById(
-        "workspace"
-    );
-
-const developerViewButton =
-    document.getElementById(
-        "developer-view-button"
-    );
-
-const agentTracePanel =
-    document.getElementById(
-        "agent-trace-panel"
-    );
-
 const chatForm =
     document.getElementById(
         "chat-form"
@@ -38,34 +23,14 @@ const chatMessages =
         "chat-messages"
     );
 
-const traceEvents =
-    document.getElementById(
-        "trace-events"
-    );
-
-const runStatus =
-    document.getElementById(
-        "run-status"
-    );
-
-const intentDisplay =
-    document.getElementById(
-        "intent-display"
-    );
-
-const runIdDisplay =
-    document.getElementById(
-        "run-id-display"
-    );
-
 const conversationIdDisplay =
     document.getElementById(
         "conversation-id-display"
     );
 
-const modelDisplay =
+const sessionStateLabel =
     document.getElementById(
-        "model-display"
+        "session-state-label"
     );
 
 const systemStatus =
@@ -78,50 +43,70 @@ const newConversationButton =
         "new-conversation-button"
     );
 
+const resolutionBanner =
+    document.getElementById(
+        "resolution-banner"
+    );
+
+const resolutionBannerLabel =
+    document.getElementById(
+        "resolution-banner-label"
+    );
+
+const resolutionBannerText =
+    document.getElementById(
+        "resolution-banner-text"
+    );
+
 
 let conversationId = null;
-
 let isSending = false;
 
-let developerViewOpen = false;
+
+const CONVERSATION_STORAGE_KEY =
+    "supportpilot.activeConversationId";
+
+const CUSTOMER_STORAGE_KEY =
+    "supportpilot.activeCustomerId";
+
+const LAST_RUN_STORAGE_KEY =
+    "supportpilot.lastRunId";
 
 
-function setDeveloperView(
-    open
+function saveActiveConversation(
+    activeConversationId,
+    activeCustomerId
 ) {
-    developerViewOpen =
-        open;
-
-    workspace.classList.toggle(
-        "developer-view-open",
-        open
+    localStorage.setItem(
+        CONVERSATION_STORAGE_KEY,
+        activeConversationId
     );
 
-    developerViewButton.classList.toggle(
-        "active",
-        open
-    );
-
-    developerViewButton.setAttribute(
-        "aria-expanded",
-        String(open)
-    );
-
-    agentTracePanel.setAttribute(
-        "aria-hidden",
-        String(!open)
-    );
-
-    developerViewButton.textContent =
-        open
-            ? "Hide Developer View"
-            : "Developer View";
+    if (activeCustomerId) {
+        localStorage.setItem(
+            CUSTOMER_STORAGE_KEY,
+            activeCustomerId
+        );
+    } else {
+        localStorage.removeItem(
+            CUSTOMER_STORAGE_KEY
+        );
+    }
 }
 
 
-function scrollChatToBottom() {
-    chatMessages.scrollTop =
-        chatMessages.scrollHeight;
+function clearActiveConversation() {
+    localStorage.removeItem(
+        CONVERSATION_STORAGE_KEY
+    );
+
+    localStorage.removeItem(
+        CUSTOMER_STORAGE_KEY
+    );
+
+    localStorage.removeItem(
+        LAST_RUN_STORAGE_KEY
+    );
 }
 
 
@@ -147,6 +132,419 @@ function createElement(
 }
 
 
+function escapeHtml(
+    value
+) {
+    return String(
+        value ?? ""
+    )
+        .replaceAll(
+            "&",
+            "&amp;"
+        )
+        .replaceAll(
+            "<",
+            "&lt;"
+        )
+        .replaceAll(
+            ">",
+            "&gt;"
+        )
+        .replaceAll(
+            '"',
+            "&quot;"
+        )
+        .replaceAll(
+            "'",
+            "&#039;"
+        );
+}
+
+
+function renderInlineMarkdown(
+    value
+) {
+    let rendered =
+        escapeHtml(
+            value
+        );
+
+    const inlineCode = [];
+
+    rendered = rendered.replace(
+        /`([^`\n]+)`/g,
+        (
+            _match,
+            code
+        ) => {
+            const token =
+                (
+                    "@@SUPPORTPILOT_INLINE_CODE_"
+                    + inlineCode.length
+                    + "@@"
+                );
+
+            inlineCode.push(
+                `<code>${code}</code>`
+            );
+
+            return token;
+        }
+    );
+
+    rendered = rendered.replace(
+        /\*\*(.+?)\*\*/g,
+        "<strong>$1</strong>"
+    );
+
+    rendered = rendered.replace(
+        /__(.+?)__/g,
+        "<strong>$1</strong>"
+    );
+
+    rendered = rendered.replace(
+        /(^|[^*])\*([^*\n]+)\*(?!\*)/g,
+        "$1<em>$2</em>"
+    );
+
+    rendered = rendered.replace(
+        /(^|[^\w])_([^_\n]+)_(?!\w)/g,
+        "$1<em>$2</em>"
+    );
+
+    rendered = rendered.replace(
+        /~~(.+?)~~/g,
+        "<del>$1</del>"
+    );
+
+    inlineCode.forEach(
+        (
+            code,
+            index
+        ) => {
+            rendered = rendered.replace(
+                (
+                    "@@SUPPORTPILOT_INLINE_CODE_"
+                    + index
+                    + "@@"
+                ),
+                code
+            );
+        }
+    );
+
+    return rendered;
+}
+
+
+function renderSafeMarkdown(
+    value
+) {
+    const lines = String(
+        value ?? ""
+    )
+        .replace(
+            /\r\n?/g,
+            "\n"
+        )
+        .split(
+            "\n"
+        );
+
+    const blocks = [];
+    let paragraphLines = [];
+    let listType = null;
+    let listItems = [];
+    let inCodeBlock = false;
+    let codeLines = [];
+
+
+    function flushParagraph() {
+        if (
+            paragraphLines.length === 0
+        ) {
+            return;
+        }
+
+        blocks.push(
+            (
+                "<p>"
+                + paragraphLines.join(
+                    "<br>"
+                )
+                + "</p>"
+            )
+        );
+
+        paragraphLines = [];
+    }
+
+
+    function flushList() {
+        if (
+            !listType
+            || listItems.length === 0
+        ) {
+            listType = null;
+            listItems = [];
+            return;
+        }
+
+        const items =
+            listItems
+                .map(
+                    (item) =>
+                        `<li>${item}</li>`
+                )
+                .join("");
+
+        blocks.push(
+            (
+                `<${listType}>`
+                + items
+                + `</${listType}>`
+            )
+        );
+
+        listType = null;
+        listItems = [];
+    }
+
+
+    function flushCodeBlock() {
+        blocks.push(
+            (
+                "<pre><code>"
+                + escapeHtml(
+                    codeLines.join(
+                        "\n"
+                    )
+                )
+                + "</code></pre>"
+            )
+        );
+
+        codeLines = [];
+    }
+
+
+    lines.forEach(
+        (line) => {
+            if (
+                /^\s*```/.test(
+                    line
+                )
+            ) {
+                if (inCodeBlock) {
+                    flushCodeBlock();
+                    inCodeBlock = false;
+                } else {
+                    flushParagraph();
+                    flushList();
+                    inCodeBlock = true;
+                    codeLines = [];
+                }
+
+                return;
+            }
+
+            if (inCodeBlock) {
+                codeLines.push(
+                    line
+                );
+                return;
+            }
+
+            if (
+                line.trim() === ""
+            ) {
+                flushParagraph();
+                flushList();
+                return;
+            }
+
+            const unorderedMatch =
+                line.match(
+                    /^\s*[-+*]\s+(.+)$/
+                );
+
+            const orderedMatch =
+                line.match(
+                    /^\s*\d+\.\s+(.+)$/
+                );
+
+            if (
+                unorderedMatch
+                || orderedMatch
+            ) {
+                flushParagraph();
+
+                const nextListType =
+                    unorderedMatch
+                        ? "ul"
+                        : "ol";
+
+                if (
+                    listType
+                    && listType
+                    !== nextListType
+                ) {
+                    flushList();
+                }
+
+                listType =
+                    nextListType;
+
+                const itemText =
+                    unorderedMatch
+                        ? unorderedMatch[1]
+                        : orderedMatch[1];
+
+                listItems.push(
+                    renderInlineMarkdown(
+                        itemText
+                    )
+                );
+
+                return;
+            }
+
+            flushList();
+
+            paragraphLines.push(
+                renderInlineMarkdown(
+                    line
+                )
+            );
+        }
+    );
+
+    if (inCodeBlock) {
+        flushCodeBlock();
+    }
+
+    flushParagraph();
+    flushList();
+
+    return blocks.join("");
+}
+
+
+function assistantAvatar() {
+    const avatar =
+        createElement(
+            "div",
+            "assistant-avatar"
+        );
+
+    avatar.innerHTML = `
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path
+                d="M6.5 5.5h11A2.5 2.5 0 0 1 20 8v6.8a2.5 2.5 0 0 1-2.5 2.5H13l-3.3 2.4v-2.4H6.5A2.5 2.5 0 0 1 4 14.8V8a2.5 2.5 0 0 1 2.5-2.5Z"
+                fill="currentColor"
+            />
+            <circle cx="8.5" cy="11.2" r="1" fill="white" />
+            <circle cx="12" cy="11.2" r="1" fill="white" />
+            <circle cx="15.5" cy="11.2" r="1" fill="white" />
+        </svg>
+    `;
+
+    return avatar;
+}
+
+
+function copyButton(
+    message
+) {
+    const button =
+        createElement(
+            "button",
+            "copy-response"
+        );
+
+    button.type =
+        "button";
+
+    button.innerHTML = `
+        <svg viewBox="0 0 18 18" aria-hidden="true">
+            <rect
+                x="5.5"
+                y="5.5"
+                width="8"
+                height="8"
+                rx="1.5"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.3"
+            />
+            <path
+                d="M4 11.5H3.5A1.5 1.5 0 0 1 2 10V4.5A1.5 1.5 0 0 1 3.5 3H9a1.5 1.5 0 0 1 1.5 1.5V5"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.3"
+                stroke-linecap="round"
+            />
+        </svg>
+        <span>Copy</span>
+    `;
+
+    button.addEventListener(
+        "click",
+        async () => {
+            try {
+                await navigator.clipboard.writeText(
+                    message
+                );
+
+                const label =
+                    button.querySelector(
+                        "span"
+                    );
+
+                label.textContent =
+                    "Copied";
+
+                window.setTimeout(
+                    () => {
+                        label.textContent =
+                            "Copy";
+                    },
+                    1200
+                );
+
+            } catch (_error) {
+                const label =
+                    button.querySelector(
+                        "span"
+                    );
+
+                label.textContent =
+                    "Copy failed";
+            }
+        }
+    );
+
+    return button;
+}
+
+
+function scrollChatToBottom() {
+    requestAnimationFrame(
+        () => {
+            window.scrollTo({
+                top:
+                    document
+                    .documentElement
+                    .scrollHeight,
+
+                behavior:
+                    "smooth",
+            });
+        }
+    );
+}
+
+
 function addMessage(
     role,
     message
@@ -157,14 +555,11 @@ function addMessage(
             `message-row ${role}`
         );
 
-    const avatar =
-        createElement(
-            "div",
-            "avatar",
-            role === "user"
-                ? "YOU"
-                : "AI"
+    if (role === "assistant") {
+        row.appendChild(
+            assistantAvatar()
         );
+    }
 
     const content =
         createElement(
@@ -172,33 +567,108 @@ function addMessage(
             "message-content"
         );
 
-    const label =
+    const meta =
         createElement(
             "div",
-            "message-label",
+            "message-meta"
+        );
+
+    const metaName =
+        createElement(
+            "strong",
+            null,
             role === "user"
-                ? "Customer"
+                ? "You"
                 : "SupportPilot"
         );
+
+    const metaDescription =
+        createElement(
+            "span",
+            null,
+            role === "user"
+                ? "Customer"
+                : "AI support agent"
+        );
+
+    meta.appendChild(
+        metaName
+    );
+
+    meta.appendChild(
+        metaDescription
+    );
 
     const bubble =
         createElement(
             "div",
-            "message-bubble",
-            message
+            "message-bubble"
         );
 
+    if (role === "assistant") {
+        bubble.classList.add(
+            "markdown-content"
+        );
+
+        bubble.innerHTML =
+            renderSafeMarkdown(
+                message
+            );
+
+    } else {
+        bubble.textContent =
+            message;
+    }
+
     content.appendChild(
-        label
+        meta
     );
 
     content.appendChild(
         bubble
     );
 
-    row.appendChild(
-        avatar
-    );
+    if (role === "assistant") {
+        const actions =
+            createElement(
+                "div",
+                "message-actions"
+            );
+
+        actions.appendChild(
+            copyButton(
+                message
+            )
+        );
+
+        content.appendChild(
+            actions
+        );
+
+    } else {
+        const avatar =
+            createElement(
+                "div",
+                "user-avatar",
+                "YOU"
+            );
+
+        row.appendChild(
+            content
+        );
+
+        row.appendChild(
+            avatar
+        );
+
+        chatMessages.appendChild(
+            row
+        );
+
+        scrollChatToBottom();
+
+        return row;
+    }
 
     row.appendChild(
         content
@@ -214,6 +684,19 @@ function addMessage(
 }
 
 
+function resetChatToWelcome() {
+    chatMessages.replaceChildren();
+
+    addMessage(
+        "assistant",
+        (
+            "Hi! I’m SupportPilot. What can I help "
+            + "you with today?"
+        )
+    );
+}
+
+
 function addLoadingMessage() {
     const row =
         createElement(
@@ -224,12 +707,9 @@ function addLoadingMessage() {
     row.id =
         "loading-message";
 
-    const avatar =
-        createElement(
-            "div",
-            "avatar",
-            "AI"
-        );
+    row.appendChild(
+        assistantAvatar()
+    );
 
     const content =
         createElement(
@@ -237,12 +717,27 @@ function addLoadingMessage() {
             "message-content"
         );
 
-    const label =
+    const meta =
         createElement(
             "div",
-            "message-label",
-            "SupportPilot"
+            "message-meta"
         );
+
+    meta.appendChild(
+        createElement(
+            "strong",
+            null,
+            "SupportPilot"
+        )
+    );
+
+    meta.appendChild(
+        createElement(
+            "span",
+            null,
+            "Investigating"
+        )
+    );
 
     const bubble =
         createElement(
@@ -273,15 +768,11 @@ function addLoadingMessage() {
     );
 
     content.appendChild(
-        label
+        meta
     );
 
     content.appendChild(
         bubble
-    );
-
-    row.appendChild(
-        avatar
     );
 
     row.appendChild(
@@ -308,353 +799,6 @@ function removeLoadingMessage() {
 }
 
 
-function setRunStatus(
-    status,
-    cssClass
-) {
-    runStatus.textContent =
-        status;
-
-    runStatus.className =
-        `run-status ${cssClass}`;
-}
-
-
-function clearTrace() {
-    traceEvents.replaceChildren();
-
-    intentDisplay.textContent =
-        "—";
-
-    runIdDisplay.textContent =
-        "—";
-}
-
-
-function showEmptyTrace() {
-    traceEvents.replaceChildren();
-
-    const empty =
-        createElement(
-            "div",
-            "trace-empty"
-        );
-
-    const icon =
-        createElement(
-            "div",
-            "trace-empty-icon",
-            "◌"
-        );
-
-    const title =
-        createElement(
-            "h3",
-            null,
-            "No agent run yet"
-        );
-
-    const description =
-        createElement(
-            "p",
-            null,
-            (
-                "Send a customer message "
-                + "to inspect SupportPilot's "
-                + "structured execution trace."
-            )
-        );
-
-    empty.appendChild(
-        icon
-    );
-
-    empty.appendChild(
-        title
-    );
-
-    empty.appendChild(
-        description
-    );
-
-    traceEvents.appendChild(
-        empty
-    );
-}
-
-
-function addTraceText(
-    container,
-    label,
-    value,
-    className = ""
-) {
-    const labelElement =
-        createElement(
-            "div",
-            "trace-label",
-            label
-        );
-
-    const valueElement =
-        createElement(
-            "div",
-            `trace-value ${className}`,
-            value
-        );
-
-    container.appendChild(
-        labelElement
-    );
-
-    container.appendChild(
-        valueElement
-    );
-}
-
-
-function addTraceJson(
-    container,
-    label,
-    value
-) {
-    const labelElement =
-        createElement(
-            "div",
-            "trace-label",
-            label
-        );
-
-    const pre =
-        createElement(
-            "pre",
-            "trace-code"
-        );
-
-    pre.textContent =
-        JSON.stringify(
-            value,
-            null,
-            2
-        );
-
-    container.appendChild(
-        labelElement
-    );
-
-    container.appendChild(
-        pre
-    );
-}
-
-
-function renderTrace(
-    trace
-) {
-    traceEvents.replaceChildren();
-
-    if (
-        !Array.isArray(trace)
-        || trace.length === 0
-    ) {
-        showEmptyTrace();
-        return;
-    }
-
-
-    trace.forEach(
-        (event) => {
-            const card =
-                createElement(
-                    "div",
-                    "trace-event"
-                );
-
-            const header =
-                createElement(
-                    "div",
-                    "trace-event-header"
-                );
-
-            const eventType =
-                createElement(
-                    "span",
-                    "trace-event-type",
-                    event.type
-                        || "event"
-                );
-
-            const step =
-                createElement(
-                    "span",
-                    "trace-step",
-                    `STEP ${
-                        event.step
-                        ?? "—"
-                    }`
-                );
-
-            header.appendChild(
-                eventType
-            );
-
-            header.appendChild(
-                step
-            );
-
-            card.appendChild(
-                header
-            );
-
-
-            if (
-                event.type ===
-                "request"
-            ) {
-                addTraceText(
-                    card,
-                    "Customer ID",
-                    event.customer_id
-                        || "Not provided"
-                );
-
-                addTraceText(
-                    card,
-                    "Message",
-                    event.message
-                        || "—"
-                );
-            }
-
-
-            if (
-                event.type ===
-                "tool_call"
-            ) {
-                addTraceText(
-                    card,
-                    "Tool",
-                    event.tool
-                        || "—"
-                );
-
-                addTraceJson(
-                    card,
-                    "Arguments",
-                    event.arguments
-                        || {}
-                );
-
-                addTraceText(
-                    card,
-                    "Status",
-                    event.result_status
-                        || "—",
-                    event.result_status
-                        === "SUCCESS"
-                        ? "trace-success"
-                        : "trace-error"
-                );
-
-                if (
-                    event.latency_ms
-                    !== undefined
-                ) {
-                    addTraceText(
-                        card,
-                        "Tool Latency",
-                        `${event.latency_ms} ms`
-                    );
-                }
-
-                addTraceJson(
-                    card,
-                    "Result",
-                    event.result
-                        || {}
-                );
-            }
-
-
-            if (
-                event.type ===
-                "final_response"
-            ) {
-                addTraceText(
-                    card,
-                    "Intent",
-                    event.intent
-                        || "general"
-                );
-
-                addTraceText(
-                    card,
-                    "Response",
-                    event.response
-                        || "—"
-                );
-            }
-
-
-            traceEvents.appendChild(
-                card
-            );
-        }
-    );
-}
-
-
-async function checkHealth() {
-    try {
-        const response =
-            await fetch(
-                "/health"
-            );
-
-        const data =
-            await response.json();
-
-        modelDisplay.textContent =
-            data.model
-            || "Unknown";
-
-
-        if (
-            response.ok
-            && data.database
-            === "up"
-            && data.agent
-            === "configured"
-        ) {
-            systemStatus.className =
-                "status-badge online";
-
-            systemStatus.innerHTML =
-                '<span class="status-dot"></span>System Online';
-
-            return;
-        }
-
-
-        systemStatus.className =
-            "status-badge offline";
-
-        systemStatus.innerHTML =
-            '<span class="status-dot"></span>System Degraded';
-
-    } catch (error) {
-        modelDisplay.textContent =
-            "Unavailable";
-
-        systemStatus.className =
-            "status-badge offline";
-
-        systemStatus.innerHTML =
-            '<span class="status-dot"></span>System Offline';
-    }
-}
-
-
 function setSendingState(
     sending
 ) {
@@ -670,10 +814,306 @@ function setSendingState(
     customerIdInput.disabled =
         sending;
 
-    sendButton.textContent =
-        sending
-            ? "Working..."
-            : "Send";
+    const buttonLabel =
+        sendButton.querySelector(
+            "span"
+        );
+
+    if (buttonLabel) {
+        buttonLabel.textContent =
+            sending
+                ? "Working"
+                : "Send";
+    }
+}
+
+
+function setSessionState(
+    state
+) {
+    if (!sessionStateLabel) {
+        return;
+    }
+
+    const labels = {
+        new:
+            "New session",
+
+        active:
+            "Active session",
+
+        restored:
+            "Restored session",
+    };
+
+    sessionStateLabel.textContent =
+        labels[state]
+        || state;
+}
+
+
+function clearResolutionBanner() {
+    if (!resolutionBanner) {
+        return;
+    }
+
+    resolutionBanner.hidden =
+        true;
+
+    resolutionBanner.dataset.status =
+        "";
+
+    resolutionBannerLabel.textContent =
+        "";
+
+    resolutionBannerText.textContent =
+        "";
+}
+
+
+function renderResolutionBanner(
+    resolution
+) {
+    if (
+        !resolutionBanner
+        || !resolution
+        || !resolution.resolution_status
+    ) {
+        clearResolutionBanner();
+        return;
+    }
+
+    const labels = {
+        RESOLVED:
+            "Resolved",
+
+        NEEDS_INFORMATION:
+            "More information needed",
+
+        UNRESOLVED:
+            "Investigation incomplete",
+
+        ESCALATION_REQUIRED:
+            "Support review required",
+    };
+
+    resolutionBanner.dataset.status =
+        resolution.resolution_status;
+
+    resolutionBannerLabel.textContent =
+        labels[
+            resolution.resolution_status
+        ]
+        || "Support status";
+
+    resolutionBannerText.textContent =
+        resolution.summary
+        || "";
+
+    resolutionBanner.hidden =
+        false;
+}
+
+
+async function restoreConversation() {
+    const storedConversationId =
+        localStorage.getItem(
+            CONVERSATION_STORAGE_KEY
+        );
+
+    if (!storedConversationId) {
+        setSessionState(
+            "new"
+        );
+
+        return;
+    }
+
+    const storedCustomerId =
+        localStorage.getItem(
+            CUSTOMER_STORAGE_KEY
+        );
+
+    if (storedCustomerId) {
+        customerIdInput.value =
+            storedCustomerId;
+    }
+
+    const queryString =
+        storedCustomerId
+            ? (
+                "?customer_id="
+                + encodeURIComponent(
+                    storedCustomerId
+                )
+            )
+            : "";
+
+    try {
+        const response =
+            await fetch(
+                (
+                    "/api/v1/support/conversations/"
+                    + encodeURIComponent(
+                        storedConversationId
+                    )
+                    + queryString
+                )
+            );
+
+        const data =
+            await response.json();
+
+        if (!response.ok) {
+            if (
+                response.status === 404
+                || response.status === 403
+            ) {
+                clearActiveConversation();
+
+                conversationId =
+                    null;
+
+                conversationIdDisplay.textContent =
+                    "New";
+
+                setSessionState(
+                    "new"
+                );
+
+                clearResolutionBanner();
+
+                resetChatToWelcome();
+
+                return;
+            }
+
+            throw new Error(
+                data.detail
+                || "Conversation restoration failed."
+            );
+        }
+
+        conversationId =
+            data.conversation_id;
+
+        conversationIdDisplay.textContent =
+            conversationId;
+
+        setSessionState(
+            "restored"
+        );
+
+        if (data.customer_id) {
+            customerIdInput.value =
+                data.customer_id;
+
+            localStorage.setItem(
+                CUSTOMER_STORAGE_KEY,
+                data.customer_id
+            );
+        }
+
+        chatMessages.replaceChildren();
+
+        if (
+            Array.isArray(
+                data.messages
+            )
+            && data.messages.length > 0
+        ) {
+            data.messages.forEach(
+                (storedMessage) => {
+                    if (
+                        storedMessage.role
+                        === "user"
+                        || storedMessage.role
+                        === "assistant"
+                    ) {
+                        addMessage(
+                            storedMessage.role,
+                            storedMessage.content
+                        );
+                    }
+                }
+            );
+
+        } else {
+            resetChatToWelcome();
+        }
+
+        if (data.resolution_status) {
+            renderResolutionBanner({
+                resolution_status:
+                    data.resolution_status,
+
+                summary:
+                    data.current_issue
+                    ? (
+                        "Previous support outcome: "
+                        + data.current_issue
+                    )
+                    : (
+                        "Previous support outcome "
+                        + "restored."
+                    ),
+            });
+
+        } else {
+            clearResolutionBanner();
+        }
+
+    } catch (error) {
+        console.error(
+            "Conversation restoration failed.",
+            error
+        );
+    }
+}
+
+
+async function checkHealth() {
+    const statusText =
+        systemStatus.querySelector(
+            ".status-text"
+        );
+
+    try {
+        const response =
+            await fetch(
+                "/health"
+            );
+
+        const data =
+            await response.json();
+
+        if (
+            response.ok
+            && data.database === "up"
+            && data.agent === "configured"
+        ) {
+            systemStatus.className =
+                "system-pill online";
+
+            statusText.textContent =
+                "System online";
+
+            return;
+        }
+
+        systemStatus.className =
+            "system-pill offline";
+
+        statusText.textContent =
+            "System degraded";
+
+    } catch (_error) {
+        systemStatus.className =
+            "system-pill offline";
+
+        statusText.textContent =
+            "System offline";
+    }
 }
 
 
@@ -691,12 +1131,10 @@ async function sendMessage(
         return;
     }
 
-
     const customerId =
         customerIdInput
             .value
             .trim();
-
 
     addMessage(
         "user",
@@ -705,17 +1143,9 @@ async function sendMessage(
 
     addLoadingMessage();
 
-    clearTrace();
-
-    setRunStatus(
-        "Running",
-        "running"
-    );
-
     setSendingState(
         true
     );
-
 
     const requestBody = {
         message:
@@ -727,9 +1157,8 @@ async function sendMessage(
 
         conversation_id:
             conversationId
-            || null
+            || null,
     };
-
 
     try {
         const response =
@@ -741,96 +1170,77 @@ async function sendMessage(
 
                     headers: {
                         "Content-Type":
-                            "application/json"
+                            "application/json",
                     },
 
                     body:
                         JSON.stringify(
                             requestBody
-                        )
+                        ),
                 }
             );
-
 
         const data =
             await response.json();
 
-
         removeLoadingMessage();
-
 
         if (!response.ok) {
             const detail =
                 data.detail
                 || (
-                    "SupportPilot could "
-                    + "not process the request."
+                    "SupportPilot could not "
+                    + "process the request."
                 );
 
             addMessage(
                 "assistant",
-                `Error: ${detail}`
-            );
-
-            setRunStatus(
-                "Failed",
-                "failed"
+                `**Request error:** ${detail}`
             );
 
             return;
         }
 
-
         conversationId =
             data.conversation_id;
 
+        saveActiveConversation(
+            conversationId,
+            customerId
+        );
 
         conversationIdDisplay.textContent =
             conversationId;
 
+        setSessionState(
+            "active"
+        );
 
-        intentDisplay.textContent =
-            data.intent
-            || "general";
-
-
-        runIdDisplay.textContent =
-            data.run_id
-            || "—";
-
+        if (data.run_id) {
+            localStorage.setItem(
+                LAST_RUN_STORAGE_KEY,
+                data.run_id
+            );
+        }
 
         addMessage(
             "assistant",
             data.response
         );
 
-
-        renderTrace(
-            data.trace
+        renderResolutionBanner(
+            data.resolution
         );
 
-
-        setRunStatus(
-            "Complete",
-            "complete"
-        );
-
-    } catch (error) {
+    } catch (_error) {
         removeLoadingMessage();
 
         addMessage(
             "assistant",
             (
-                "SupportPilot could not "
-                + "reach the local API. "
-                + "Please make sure the "
-                + "FastAPI server is running."
+                "I couldn't reach the local SupportPilot API. "
+                + "Please make sure the FastAPI server is running."
             )
-        );
-
-        setRunStatus(
-            "Failed",
-            "failed"
         );
 
     } finally {
@@ -841,16 +1251,6 @@ async function sendMessage(
         messageInput.focus();
     }
 }
-
-
-developerViewButton.addEventListener(
-    "click",
-    () => {
-        setDeveloperView(
-            !developerViewOpen
-        );
-    }
-);
 
 
 chatForm.addEventListener(
@@ -896,10 +1296,13 @@ messageInput.addEventListener(
             "auto";
 
         messageInput.style.height =
-            `${Math.min(
-                messageInput.scrollHeight,
-                110
-            )}px`;
+            (
+                Math.min(
+                    messageInput.scrollHeight,
+                    118
+                )
+                + "px"
+            );
     }
 );
 
@@ -933,36 +1336,18 @@ newConversationButton.addEventListener(
         conversationId =
             null;
 
+        clearActiveConversation();
+
         conversationIdDisplay.textContent =
             "New";
 
-        clearTrace();
-
-        showEmptyTrace();
-
-        setRunStatus(
-            "Idle",
-            "idle"
+        setSessionState(
+            "new"
         );
 
+        clearResolutionBanner();
 
-        const existingMessages =
-            Array.from(
-                chatMessages.children
-            );
-
-
-        existingMessages.forEach(
-            (
-                element,
-                index
-            ) => {
-                if (index > 0) {
-                    element.remove();
-                }
-            }
-        );
-
+        resetChatToWelcome();
 
         messageInput.value =
             "";
@@ -972,8 +1357,5 @@ newConversationButton.addEventListener(
 );
 
 
-setDeveloperView(
-    false
-);
-
 checkHealth();
+restoreConversation();

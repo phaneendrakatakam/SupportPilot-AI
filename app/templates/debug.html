@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <meta
+        name="theme-color"
+        content="#0b1220"
+    >
+
+    <title>SupportPilot Agent Inspector</title>
+
+    <link
+        rel="stylesheet"
+        href="/static/debug.css?v=20260830-readable-2"
+    >
+</head>
+
+<body>
+    <div class="debug-shell">
+
+        <header class="debug-topbar">
+            <div class="debug-brand">
+                <span class="debug-brand-mark">
+                    &lt;/&gt;
+                </span>
+
+                <div>
+                    <span class="debug-kicker">
+                        SUPPORTPILOT INTERNAL
+                    </span>
+
+                    <h1>
+                        Agent Inspector
+                    </h1>
+                </div>
+            </div>
+
+            <a
+                class="back-link"
+                href="/"
+            >
+                Customer UI →
+            </a>
+        </header>
+
+
+        <section class="run-lookup">
+            <div class="lookup-copy">
+                <span class="debug-kicker">
+                    RUN LOOKUP
+                </span>
+
+                <p>
+                    Inspect persisted tool calls, evidence,
+                    resolution and response for any SupportPilot run.
+                </p>
+            </div>
+
+            <div class="lookup-controls">
+                <input
+                    id="run-id-input"
+                    type="text"
+                    placeholder="Paste a run ID"
+                    autocomplete="off"
+                    spellcheck="false"
+                >
+
+                <button
+                    id="load-run-button"
+                    type="button"
+                >
+                    Load run
+                </button>
+            </div>
+        </section>
+
+
+        <div
+            id="inspector-status"
+            class="inspector-status"
+        >
+            Waiting for a run.
+        </div>
+
+
+        <div class="inspector-layout">
+
+            <aside class="inspector-context">
+                <section class="debug-card context-card">
+                    <div class="section-heading">
+                        <span class="section-index">
+                            01
+                        </span>
+
+                        <div>
+                            <span class="debug-kicker">
+                                RUN CONTEXT
+                            </span>
+
+                            <h2>
+                                Overview
+                            </h2>
+                        </div>
+                    </div>
+
+                    <div
+                        id="run-summary"
+                        class="summary-grid"
+                        hidden
+                    ></div>
+                </section>
+
+
+                <section
+                    id="request-section"
+                    class="debug-card"
+                    hidden
+                >
+                    <div class="section-heading">
+                        <span class="section-index">
+                            02
+                        </span>
+
+                        <div>
+                            <span class="debug-kicker">
+                                INPUT
+                            </span>
+
+                            <h2>
+                                Customer request
+                            </h2>
+                        </div>
+                    </div>
+
+                    <pre id="request-message"></pre>
+                </section>
+            </aside>
+
+
+            <main class="inspector-evidence">
+                <section
+                    id="tool-section"
+                    class="debug-card"
+                    hidden
+                >
+                    <div class="section-heading split-heading">
+                        <div class="heading-left">
+                            <span class="section-index">
+                                03
+                            </span>
+
+                            <div>
+                                <span class="debug-kicker">
+                                    INVESTIGATION
+                                </span>
+
+                                <h2>
+                                    Tool execution sequence
+                                </h2>
+                            </div>
+                        </div>
+
+                        <span class="section-note">
+                            System-of-record evidence
+                        </span>
+                    </div>
+
+                    <div id="tool-executions"></div>
+                </section>
+
+
+                <section
+                    id="trace-section"
+                    class="debug-card"
+                    hidden
+                >
+                    <div class="section-heading">
+                        <span class="section-index">
+                            04
+                        </span>
+
+                        <div>
+                            <span class="debug-kicker">
+                                STRUCTURED EVENTS
+                            </span>
+
+                            <h2>
+                                Execution trace
+                            </h2>
+                        </div>
+                    </div>
+
+                    <div id="trace-events"></div>
+                </section>
+            </main>
+
+
+            <aside class="inspector-decision">
+                <section
+                    id="resolution-section"
+                    class="debug-card decision-card"
+                    hidden
+                >
+                    <div class="section-heading">
+                        <span class="section-index">
+                            05
+                        </span>
+
+                        <div>
+                            <span class="debug-kicker">
+                                DECISION
+                            </span>
+
+                            <h2>
+                                Resolution
+                            </h2>
+                        </div>
+                    </div>
+
+                    <div id="resolution-content"></div>
+                </section>
+
+
+                <section
+                    id="response-section"
+                    class="debug-card response-card"
+                    hidden
+                >
+                    <div class="section-heading">
+                        <span class="section-index">
+                            06
+                        </span>
+
+                        <div>
+                            <span class="debug-kicker">
+                                CUSTOMER OUTPUT
+                            </span>
+
+                            <h2>
+                                Final response
+                            </h2>
+                        </div>
+                    </div>
+
+                    <pre id="final-response"></pre>
+                </section>
+            </aside>
+        </div>
+
+
+        <footer class="debug-footer">
+            <span>
+                SupportPilot AI · Agent Inspector
+            </span>
+
+            <span>
+                Structured application observability only —
+                no private model chain-of-thought.
+            </span>
+        </footer>
+    </div>
+
+    <script
+        src="/static/debug.js?v=20260829-board2-final-1"
+    ></script>
+</body>
+</html>

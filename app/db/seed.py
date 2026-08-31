@@ -1,9 +1,23 @@
 from datetime import datetime, timezone
+from decimal import Decimal
+from pathlib import Path
 
 from sqlalchemy import select
 
-from app.db.models import Base, Customer, Document, DocumentChunk, ServiceIncident, Subscription
-from app.db.session import SessionLocal, engine
+from app.db.models import (
+    Customer,
+    Document,
+    DocumentChunk,
+    Payment,
+    ServiceIncident,
+    Subscription,
+)
+from app.db.schema import ensure_schema
+from app.db.session import SessionLocal
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+KNOWLEDGE_DIR = PROJECT_ROOT / "knowledge_base"
 
 
 def dt(year: int, month: int, day: int) -> datetime:
@@ -11,155 +25,153 @@ def dt(year: int, month: int, day: int) -> datetime:
 
 
 CUSTOMERS = [
-    Customer(
-        customer_id="CUS-1001",
-        name="Arjun Rao",
-        email="arjun.rao@example.test",
-        account_status="ACTIVE",
-        created_at=dt(2025, 1, 10),
-    ),
-    Customer(
-        customer_id="CUS-1002",
-        name="Priya Sharma",
-        email="priya.sharma@example.test",
-        account_status="ACTIVE",
-        created_at=dt(2025, 2, 15),
-    ),
-    Customer(
-        customer_id="CUS-1003",
-        name="Rahul Verma",
-        email="rahul.verma@example.test",
-        account_status="SUSPENDED",
-        created_at=dt(2025, 3, 20),
-    ),
-    Customer(
-        customer_id="CUS-1007",
-        name="Ananya Reddy",
-        email="ananya.reddy@example.test",
-        account_status="ACTIVE",
-        created_at=dt(2025, 6, 7),
-    ),
+    ("CUS-1001", "Arjun Rao", "arjun.rao@example.test", "ACTIVE", dt(2025, 1, 10)),
+    ("CUS-1002", "Priya Sharma", "priya.sharma@example.test", "ACTIVE", dt(2025, 2, 15)),
+    ("CUS-1003", "Rahul Verma", "rahul.verma@example.test", "SUSPENDED", dt(2025, 3, 20)),
+    ("CUS-1004", "Maya Singh", "maya.singh@example.test", "ACTIVE", dt(2025, 4, 12)),
+    ("CUS-1005", "Aditya Nair", "aditya.nair@example.test", "ACTIVE", dt(2025, 5, 2)),
+    ("CUS-1006", "Neha Iyer", "neha.iyer@example.test", "ACTIVE", dt(2025, 5, 20)),
+    ("CUS-1007", "Ananya Reddy", "ananya.reddy@example.test", "ACTIVE", dt(2025, 6, 7)),
 ]
 
 SUBSCRIPTIONS = [
-    Subscription(
-        subscription_id="SUB-1001",
-        customer_id="CUS-1001",
-        plan="BASIC",
-        status="ACTIVE",
-        requested_plan=None,
-        start_date=dt(2025, 1, 10),
-        last_sync_status="SUCCESS",
-    ),
-    Subscription(
-        subscription_id="SUB-1002",
-        customer_id="CUS-1002",
-        plan="PRO",
-        status="ACTIVE",
-        requested_plan=None,
-        start_date=dt(2025, 2, 15),
-        last_sync_status="SUCCESS",
-    ),
-    Subscription(
-        subscription_id="SUB-1003",
-        customer_id="CUS-1003",
-        plan="PRO",
-        status="SUSPENDED",
-        requested_plan=None,
-        start_date=dt(2025, 3, 20),
-        last_sync_status="SUCCESS",
-    ),
-    Subscription(
-        subscription_id="SUB-1007",
-        customer_id="CUS-1007",
-        plan="BASIC",
-        status="ACTIVE",
-        requested_plan="PRO",
-        start_date=dt(2025, 6, 7),
-        last_sync_status="FAILED",
-    ),
+    ("SUB-1001", "CUS-1001", "BASIC", "ACTIVE", None, "SUCCESS", dt(2025, 1, 10)),
+    ("SUB-1002", "CUS-1002", "PRO", "ACTIVE", None, "SUCCESS", dt(2025, 2, 15)),
+    ("SUB-1003", "CUS-1003", "PRO", "SUSPENDED", None, "SUCCESS", dt(2025, 3, 20)),
+    ("SUB-1004", "CUS-1004", "BASIC", "ACTIVE", "PRO", "PENDING", dt(2025, 4, 12)),
+    ("SUB-1005", "CUS-1005", "BASIC", "ACTIVE", "PRO", "FAILED", dt(2025, 5, 2)),
+    ("SUB-1006", "CUS-1006", "PRO", "ACTIVE", "PRO", "SUCCESS", dt(2025, 5, 20)),
+    ("SUB-1007", "CUS-1007", "BASIC", "ACTIVE", "PRO", "FAILED", dt(2025, 6, 7)),
+]
+
+PAYMENTS = [
+    ("PAY-3001", "CUS-1001", "TXN-CD-3001", "PRO", Decimal("29.00"), "USD", "FAILED", dt(2026, 8, 20)),
+    ("PAY-3002", "CUS-1002", "TXN-CD-3002", "PRO", Decimal("29.00"), "USD", "SUCCESS", dt(2026, 8, 22)),
+    ("PAY-3004", "CUS-1004", "TXN-CD-3004", "PRO", Decimal("29.00"), "USD", "PENDING", dt(2026, 8, 26)),
+    ("PAY-3006", "CUS-1006", "TXN-CD-3006", "PRO", Decimal("29.00"), "USD", "SUCCESS", dt(2026, 8, 27)),
+    ("PAY-3007", "CUS-1007", "TXN-CD-3007", "PRO", Decimal("29.00"), "USD", "SUCCESS", dt(2026, 8, 27)),
 ]
 
 INCIDENTS = [
-    ServiceIncident(
-        incident_id="INC-2001",
-        service="core",
-        region="EU",
-        status="ACTIVE",
-        severity="SEV2",
-        description="Elevated login errors for a subset of customers in the EU region.",
-        started_at=dt(2026, 8, 25),
+    (
+        "INC-2001", "core", "EU", "ACTIVE", "SEV2",
+        "Elevated login errors for a subset of customers in the EU region.",
+        dt(2026, 8, 25), None,
     ),
-    ServiceIncident(
-        incident_id="INC-1998",
-        service="core",
-        region="IN",
-        status="RESOLVED",
-        severity="SEV3",
-        description="Intermittent dashboard latency in India; incident resolved.",
-        started_at=dt(2026, 8, 20),
-        resolved_at=dt(2026, 8, 20),
+    (
+        "INC-1998", "core", "IN", "RESOLVED", "SEV3",
+        "Intermittent dashboard latency in India; incident resolved.",
+        dt(2026, 8, 20), dt(2026, 8, 20),
     ),
 ]
 
-KNOWLEDGE = {
-    "refund_policy.md": (
-        "Refund Policy",
-        "CloudDesk subscription charges are generally non-refundable after a billing cycle begins. "
-        "A duplicate charge or a confirmed billing error may be reviewed by support. "
-        "Customers should not be promised a refund unless the policy criteria are satisfied."
-    ),
-    "subscription_changes.md": (
-        "Subscription Upgrade and Downgrade Policy",
-        "Plan upgrades normally take effect after payment confirmation and a successful subscription sync. "
-        "If payment succeeds but the requested plan is not applied, support should verify account and "
-        "subscription state before escalation or approved remediation."
-    ),
-    "service_status.md": (
-        "Service Availability Guidance",
-        "When a customer reports that CloudDesk is unavailable, support should check the service status "
-        "for the affected service and region before concluding that the issue is account-specific."
-    ),
-    "support_scope.md": (
-        "Support Scope",
-        "The support agent may answer documented product and policy questions and inspect authorized "
-        "synthetic account data through approved tools. Unsupported actions and unrelated requests must "
-        "not be presented as completed."
-    ),
-}
 
-
-def seed() -> None:
-    Base.metadata.create_all(bind=engine)
+def seed_data() -> None:
+    ensure_schema()
 
     with SessionLocal() as db:
-        for customer in CUSTOMERS:
-            if db.get(Customer, customer.customer_id) is None:
-                db.add(customer)
-
-        for subscription in SUBSCRIPTIONS:
-            if db.get(Subscription, subscription.subscription_id) is None:
-                db.add(subscription)
-
-        for incident in INCIDENTS:
-            if db.get(ServiceIncident, incident.incident_id) is None:
-                db.add(incident)
+        for customer_id, name, email, status, created_at in CUSTOMERS:
+            item = db.get(Customer, customer_id)
+            if item is None:
+                item = Customer(customer_id=customer_id)
+                db.add(item)
+            item.name = name
+            item.email = email
+            item.account_status = status
+            item.created_at = created_at
 
         db.flush()
 
-        for source, (title, content) in KNOWLEDGE.items():
-            existing = db.scalar(select(Document).where(Document.source == source))
-            if existing is not None:
-                continue
-            document = Document(title=title, source=source)
-            db.add(document)
-            db.flush()
-            db.add(DocumentChunk(document_id=document.document_id, chunk_index=0, content=content))
+        for sub_id, customer_id, plan, status, requested, sync, start_date in SUBSCRIPTIONS:
+            item = db.get(Subscription, sub_id)
+            if item is None:
+                item = Subscription(subscription_id=sub_id, customer_id=customer_id, plan=plan, status=status)
+                db.add(item)
+            item.customer_id = customer_id
+            item.plan = plan
+            item.status = status
+            item.requested_plan = requested
+            item.last_sync_status = sync
+            item.start_date = start_date
+
+        for pay_id, customer_id, ref, plan, amount, currency, status, payment_date in PAYMENTS:
+            item = db.get(Payment, pay_id)
+            if item is None:
+                item = Payment(
+                    payment_id=pay_id,
+                    customer_id=customer_id,
+                    transaction_reference=ref,
+                    plan=plan,
+                    amount=amount,
+                    status=status,
+                )
+                db.add(item)
+            item.customer_id = customer_id
+            item.transaction_reference = ref
+            item.plan = plan
+            item.amount = amount
+            item.currency = currency
+            item.status = status
+            item.payment_date = payment_date
+
+        for inc_id, service, region, status, severity, description, started, resolved in INCIDENTS:
+            item = db.get(ServiceIncident, inc_id)
+            if item is None:
+                item = ServiceIncident(
+                    incident_id=inc_id,
+                    service=service,
+                    status=status,
+                    severity=severity,
+                    description=description,
+                )
+                db.add(item)
+            item.service = service
+            item.region = region
+            item.status = status
+            item.severity = severity
+            item.description = description
+            item.started_at = started
+            item.resolved_at = resolved
+
+        db.flush()
+
+        for file_path in sorted(KNOWLEDGE_DIR.glob("*.md")):
+            source = file_path.name
+            content = file_path.read_text(encoding="utf-8").strip()
+            first = content.splitlines()[0] if content else source
+            title = first.lstrip("#").strip() or source
+
+            document = db.scalar(select(Document).where(Document.source == source))
+            if document is None:
+                document = Document(title=title, source=source)
+                db.add(document)
+                db.flush()
+            else:
+                document.title = title
+
+            chunk = db.scalar(
+                select(DocumentChunk).where(
+                    DocumentChunk.document_id == document.document_id,
+                    DocumentChunk.chunk_index == 0,
+                )
+            )
+            if chunk is None:
+                db.add(
+                    DocumentChunk(
+                        document_id=document.document_id,
+                        chunk_index=0,
+                        content=content,
+                        embedding=None,
+                    )
+                )
+            elif chunk.content != content:
+                chunk.content = content
+                chunk.embedding = None
 
         db.commit()
 
-    print("CloudDesk Day-1 seed completed.")
+    print("CloudDesk V2 seed completed.")
 
 
 if __name__ == "__main__":
-    seed()
+    seed_data()

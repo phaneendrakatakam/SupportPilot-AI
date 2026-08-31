@@ -8,125 +8,363 @@
         content="width=device-width, initial-scale=1.0"
     >
 
+    <meta
+        name="theme-color"
+        content="#f6f8fc"
+    >
+
+    <meta
+        name="description"
+        content="SupportPilot AI - CloudDesk customer support assistant"
+    >
+
     <title>SupportPilot AI</title>
 
     <link
         rel="stylesheet"
-        href="/static/styles.css"
+        href="/static/styles.css?v=20260830-readable-2"
     >
 </head>
 
 <body>
+    <div class="page-glow page-glow-one"></div>
+    <div class="page-glow page-glow-two"></div>
 
     <div class="app-shell">
 
         <header class="topbar">
+            <a
+                class="brand"
+                href="/"
+                aria-label="SupportPilot AI home"
+            >
+                <span class="brand-mark" aria-hidden="true">
+                    <svg viewBox="0 0 28 28">
+                        <path
+                            d="M7.4 7.1A3.1 3.1 0 0 1 10.5 4h7A3.1 3.1 0 0 1 20.6 7.1v6.2a3.1 3.1 0 0 1-3.1 3.1h-3.8l-3.6 3.1c-.7.6-1.8.1-1.8-.8v-2.3a3.1 3.1 0 0 1-.9-2.2V7.1Z"
+                            fill="currentColor"
+                        />
+                        <path
+                            d="M11 9.2h6M11 12.2h4"
+                            fill="none"
+                            stroke="white"
+                            stroke-width="1.6"
+                            stroke-linecap="round"
+                        />
+                    </svg>
+                </span>
 
-            <div class="brand-block">
+                <span class="brand-copy">
+                    <strong>SupportPilot</strong>
+                    <span>CloudDesk support</span>
+                </span>
+            </a>
 
-                <div class="brand-icon">
-                    SP
-                </div>
-
-                <div>
-                    <h1>SupportPilot AI</h1>
-                    <p>CloudDesk Customer Support Agent</p>
-                </div>
-
-            </div>
-
-
-            <div class="status-area">
-
+            <div class="topbar-actions">
                 <div
                     id="system-status"
-                    class="status-badge checking"
+                    class="system-pill checking"
+                    aria-live="polite"
                 >
                     <span class="status-dot"></span>
-                    Checking system
+                    <span class="status-text">
+                        Checking system
+                    </span>
                 </div>
-
-
-                <button
-                    id="developer-view-button"
-                    class="secondary-button developer-toggle"
-                    type="button"
-                    aria-expanded="false"
-                    aria-controls="agent-trace-panel"
-                >
-                    Developer View
-                </button>
-
 
                 <button
                     id="new-conversation-button"
-                    class="secondary-button"
+                    class="new-chat-button"
                     type="button"
                 >
-                    New Conversation
+                    <svg
+                        viewBox="0 0 20 20"
+                        aria-hidden="true"
+                    >
+                        <path
+                            d="M10 4v12M4 10h12"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.8"
+                            stroke-linecap="round"
+                        />
+                    </svg>
+
+                    <span>New conversation</span>
                 </button>
-
             </div>
-
         </header>
 
 
-        <main
-            id="workspace"
-            class="workspace"
-        >
+        <main class="workspace">
 
-            <section class="chat-panel">
+            <aside class="inbox-rail">
 
-                <div class="panel-header">
-
-                    <div>
-                        <span class="eyebrow">
-                            CUSTOMER CHAT
-                        </span>
-
-                        <h2>
-                            Support Conversation
-                        </h2>
+                <section class="rail-section customer-section">
+                    <div class="rail-heading">
+                        <span>Customer</span>
+                        <span class="rail-live-dot"></span>
                     </div>
 
+                    <label
+                        class="customer-label"
+                        for="customer-id"
+                    >
+                        Customer ID
+                    </label>
 
-                    <div class="customer-control">
-
-                        <label for="customer-id">
-                            Customer ID
-                        </label>
+                    <div class="customer-input-wrap">
+                        <svg
+                            class="customer-icon"
+                            viewBox="0 0 20 20"
+                            aria-hidden="true"
+                        >
+                            <circle
+                                cx="10"
+                                cy="7"
+                                r="3"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="1.5"
+                            />
+                            <path
+                                d="M4.7 16c.7-3 2.6-4.5 5.3-4.5s4.6 1.5 5.3 4.5"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="1.5"
+                                stroke-linecap="round"
+                            />
+                        </svg>
 
                         <input
                             id="customer-id"
                             type="text"
                             value="CUS-1007"
-                            placeholder="e.g. CUS-1007"
+                            placeholder="CUS-1007"
                             autocomplete="off"
+                            spellcheck="false"
                         >
+                    </div>
+                </section>
 
+
+                <section class="rail-section">
+                    <div class="rail-heading">
+                        <span>Current conversation</span>
                     </div>
 
+                    <div class="conversation-card active">
+                        <span class="conversation-icon">
+                            <svg viewBox="0 0 20 20" aria-hidden="true">
+                                <path
+                                    d="M4 5.5A2.5 2.5 0 0 1 6.5 3h7A2.5 2.5 0 0 1 16 5.5v5A2.5 2.5 0 0 1 13.5 13H10l-3.3 2.8V13h-.2A2.5 2.5 0 0 1 4 10.5z"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="1.5"
+                                    stroke-linejoin="round"
+                                />
+                            </svg>
+                        </span>
+
+                        <span class="conversation-card-copy">
+                            <strong
+                                id="session-state-label"
+                            >
+                                New session
+                            </strong>
+
+                            <small
+                                id="conversation-id-display"
+                            >
+                                New
+                            </small>
+                        </span>
+
+                        <span class="conversation-chevron">
+                            ›
+                        </span>
+                    </div>
+                </section>
+
+
+                <section class="rail-section quick-section">
+                    <div class="rail-heading">
+                        <span>Quick actions</span>
+                    </div>
+
+                    <button
+                        class="quick-action"
+                        data-message="I paid for Pro, but my account still shows Basic. What happened?"
+                        type="button"
+                    >
+                        <span class="quick-action-icon">
+                            <svg viewBox="0 0 20 20" aria-hidden="true">
+                                <rect
+                                    x="3"
+                                    y="5"
+                                    width="14"
+                                    height="10"
+                                    rx="2"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="1.45"
+                                />
+                                <path
+                                    d="M3 8h14"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="1.45"
+                                />
+                            </svg>
+                        </span>
+
+                        <span>
+                            <strong>Pro upgrade issue</strong>
+                            <small>Payment + plan mismatch</small>
+                        </span>
+                    </button>
+
+                    <button
+                        class="quick-action"
+                        data-message="What subscription plan am I currently on?"
+                        type="button"
+                    >
+                        <span class="quick-action-icon">
+                            <svg viewBox="0 0 20 20" aria-hidden="true">
+                                <path
+                                    d="M4 5.5h12M4 10h8M4 14.5h5"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="1.45"
+                                    stroke-linecap="round"
+                                />
+                            </svg>
+                        </span>
+
+                        <span>
+                            <strong>Check my plan</strong>
+                            <small>Current subscription</small>
+                        </span>
+                    </button>
+
+                    <button
+                        class="quick-action"
+                        data-message="Is the CloudDesk core service currently down in the EU region?"
+                        type="button"
+                    >
+                        <span class="quick-action-icon">
+                            <svg viewBox="0 0 20 20" aria-hidden="true">
+                                <path
+                                    d="M3.5 13.5h2.2l1.5-5 2.2 7 1.8-9 1.8 7h3.5"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="1.45"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                />
+                            </svg>
+                        </span>
+
+                        <span>
+                            <strong>EU service status</strong>
+                            <small>Incident check</small>
+                        </span>
+                    </button>
+
+                    <button
+                        class="quick-action"
+                        data-message="What is CloudDesk's refund policy?"
+                        type="button"
+                    >
+                        <span class="quick-action-icon">
+                            <svg viewBox="0 0 20 20" aria-hidden="true">
+                                <path
+                                    d="M6 3.5h6l3 3V16.5H6z"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="1.45"
+                                    stroke-linejoin="round"
+                                />
+                                <path
+                                    d="M12 3.5v3h3M8.5 10h4M8.5 13h3"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="1.45"
+                                    stroke-linecap="round"
+                                />
+                            </svg>
+                        </span>
+
+                        <span>
+                            <strong>Refund policy</strong>
+                            <small>CloudDesk knowledge</small>
+                        </span>
+                    </button>
+                </section>
+
+
+                <div class="rail-footer">
+                    <span class="rail-footer-mark">
+                        SP
+                    </span>
+
+                    <span>
+                        SupportPilot AI · V2
+                    </span>
                 </div>
+            </aside>
+
+
+            <section class="conversation-panel">
+
+                <header class="conversation-header">
+                    <div class="conversation-title">
+                        <span class="eyebrow">
+                            SUPPORT CONVERSATION
+                        </span>
+
+                        <h1>
+                            How can I help today?
+                        </h1>
+
+                        <p>
+                            Ask a CloudDesk support question and
+                            SupportPilot will investigate the relevant
+                            systems before answering.
+                        </p>
+                    </div>
+
+                    <div class="header-badge">
+                        <span class="header-badge-dot"></span>
+                        Evidence-based support
+                    </div>
+                </header>
 
 
                 <div
-                    id="conversation-meta"
-                    class="conversation-meta"
+                    id="resolution-banner"
+                    class="resolution-banner"
+                    hidden
+                    aria-live="polite"
                 >
-                    <span>
-                        Conversation:
-                        <strong id="conversation-id-display">
-                            New
-                        </strong>
-                    </span>
+                    <div
+                        class="resolution-icon"
+                        aria-hidden="true"
+                    >
+                        <span></span>
+                    </div>
 
-                    <span>
-                        Model:
-                        <strong id="model-display">
-                            Loading...
-                        </strong>
-                    </span>
+                    <div class="resolution-copy">
+                        <span
+                            id="resolution-banner-label"
+                            class="resolution-banner-label"
+                        ></span>
+
+                        <span
+                            id="resolution-banner-text"
+                            class="resolution-banner-text"
+                        ></span>
+                    </div>
                 </div>
 
 
@@ -135,196 +373,142 @@
                     class="chat-messages"
                     aria-live="polite"
                 >
-
                     <div class="message-row assistant">
-
-                        <div class="avatar">
-                            AI
+                        <div class="assistant-avatar">
+                            <svg
+                                viewBox="0 0 24 24"
+                                aria-hidden="true"
+                            >
+                                <path
+                                    d="M6.5 5.5h11A2.5 2.5 0 0 1 20 8v6.8a2.5 2.5 0 0 1-2.5 2.5H13l-3.3 2.4v-2.4H6.5A2.5 2.5 0 0 1 4 14.8V8a2.5 2.5 0 0 1 2.5-2.5Z"
+                                    fill="currentColor"
+                                />
+                                <circle
+                                    cx="8.5"
+                                    cy="11.2"
+                                    r="1"
+                                    fill="white"
+                                />
+                                <circle
+                                    cx="12"
+                                    cy="11.2"
+                                    r="1"
+                                    fill="white"
+                                />
+                                <circle
+                                    cx="15.5"
+                                    cy="11.2"
+                                    r="1"
+                                    fill="white"
+                                />
+                            </svg>
                         </div>
 
                         <div class="message-content">
-
-                            <div class="message-label">
-                                SupportPilot
+                            <div class="message-meta">
+                                <strong>SupportPilot</strong>
+                                <span>AI support agent</span>
                             </div>
 
-                            <div class="message-bubble">Hi! I'm SupportPilot, the CloudDesk support agent. I can help with account information, subscriptions, service status, and documented CloudDesk policies.</div>
+                            <div class="message-bubble markdown-content">
+                                <p>
+                                    Hi! I’m SupportPilot. What can I help
+                                    you with today?
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
+
+                <div class="composer-zone">
+                    <form
+                        id="chat-form"
+                        class="composer"
+                    >
+                        <div class="composer-input-wrap">
+                            <textarea
+                                id="message-input"
+                                rows="1"
+                                maxlength="4000"
+                                placeholder="Message SupportPilot..."
+                                aria-label="Message SupportPilot"
+                                required
+                            ></textarea>
+
+                            <span class="composer-hint">
+                                Enter to send · Shift + Enter for new line
+                            </span>
                         </div>
 
-                    </div>
-
-                </div>
-
-
-                <div class="quick-actions">
-
-                    <button
-                        class="quick-action"
-                        data-message="What subscription plan am I currently on?"
-                        type="button"
-                    >
-                        Check my plan
-                    </button>
-
-                    <button
-                        class="quick-action"
-                        data-message="Is my customer account active?"
-                        type="button"
-                    >
-                        Account status
-                    </button>
-
-                    <button
-                        class="quick-action"
-                        data-message="Is the CloudDesk core service currently down in the EU region?"
-                        type="button"
-                    >
-                        Service status
-                    </button>
-
-                    <button
-                        class="quick-action"
-                        data-message="What is CloudDesk's refund policy?"
-                        type="button"
-                    >
-                        Refund policy
-                    </button>
-
-                </div>
-
-
-                <form
-                    id="chat-form"
-                    class="composer"
-                >
-
-                    <textarea
-                        id="message-input"
-                        rows="1"
-                        maxlength="4000"
-                        placeholder="Ask SupportPilot a CloudDesk support question..."
-                        required
-                    ></textarea>
-
-                    <button
-                        id="send-button"
-                        class="send-button"
-                        type="submit"
-                    >
-                        Send
-                    </button>
-
-                </form>
-
-            </section>
-
-
-            <aside
-                id="agent-trace-panel"
-                class="trace-panel"
-                aria-hidden="true"
-            >
-
-                <div class="panel-header trace-header">
-
-                    <div>
-                        <span class="eyebrow">
-                            INTERNAL / DEVELOPER
-                        </span>
-
-                        <h2>
-                            Agent Trace
-                        </h2>
-                    </div>
-
-                    <div
-                        id="run-status"
-                        class="run-status idle"
-                    >
-                        Idle
-                    </div>
-
-                </div>
-
-
-                <div class="trace-summary">
-
-                    <div class="summary-item">
-
-                        <span>
-                            Intent
-                        </span>
-
-                        <strong id="intent-display">
-                            —
-                        </strong>
-
-                    </div>
-
-
-                    <div class="summary-item">
-
-                        <span>
-                            Run ID
-                        </span>
-
-                        <strong
-                            id="run-id-display"
-                            class="monospace"
+                        <button
+                            id="send-button"
+                            class="send-button"
+                            type="submit"
+                            aria-label="Send message"
                         >
-                            —
-                        </strong>
+                            <span>Send</span>
 
+                            <svg
+                                viewBox="0 0 20 20"
+                                aria-hidden="true"
+                            >
+                                <path
+                                    d="M4 10h11M11 6l4 4-4 4"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="1.8"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                />
+                            </svg>
+                        </button>
+                    </form>
+
+                    <div class="trust-line">
+                        <svg
+                            viewBox="0 0 18 18"
+                            aria-hidden="true"
+                        >
+                            <path
+                                d="M9 2.5 14.5 4.5v4c0 3.3-2.1 5.5-5.5 7-3.4-1.5-5.5-3.7-5.5-7v-4z"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="1.35"
+                                stroke-linejoin="round"
+                            />
+                            <path
+                                d="m6.8 9 1.4 1.4 3.2-3.5"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="1.35"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                            />
+                        </svg>
+
+                        <span>
+                            SupportPilot checks verified CloudDesk data
+                            and won’t guess when evidence is unclear.
+                        </span>
                     </div>
-
                 </div>
-
-
-                <div
-                    id="trace-events"
-                    class="trace-events"
-                >
-
-                    <div class="trace-empty">
-
-                        <div class="trace-empty-icon">
-                            ◌
-                        </div>
-
-                        <h3>
-                            No agent run yet
-                        </h3>
-
-                        <p>
-                            Send a customer message to inspect SupportPilot's structured execution trace.
-                        </p>
-
-                    </div>
-
-                </div>
-
-            </aside>
-
+            </section>
         </main>
 
-
-        <footer class="footer">
-
+        <footer class="page-footer">
             <span>
-                SupportPilot AI · V1 Agent Foundation
+                CloudDesk local demo
             </span>
 
             <span>
-                Local Development Environment
+                SupportPilot AI · Multi-tool resolution agent
             </span>
-
         </footer>
-
     </div>
 
-
-    <script src="/static/app.js"></script>
-
+    <script
+        src="/static/app.js?v=20260829-board2-final-1"
+    ></script>
 </body>
 </html>
