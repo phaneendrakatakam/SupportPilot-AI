@@ -1,937 +1,747 @@
 # SupportPilot AI
 
-> **Multi-tool AI customer-support resolution agent built with Gemini tool calling, FastAPI, PostgreSQL, pgvector, structured resolution logic, persistent conversations, agent observability, and evidence-grounded responses.**
+### Human-in-the-Loop AI Support Investigation & Resolution System
 
-![Version](https://img.shields.io/badge/version-V2%20Multi--Tool%20Resolution-5B7CFA)
-![Status](https://img.shields.io/badge/status-complete-brightgreen)
-![Tests](https://img.shields.io/badge/tests-55%2F55%20passing-brightgreen)
-![Live Evaluation](https://img.shields.io/badge/live%20Gemini-8%2F8%20passed-brightgreen)
-![Python](https://img.shields.io/badge/Python-3.12-blue)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.116.1-009688)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-pgvector-336791)
-![Gemini](https://img.shields.io/badge/AI-Gemini-8E75FF)
+SupportPilot AI is a portfolio-grade AI support system that investigates customer issues, gathers evidence through read-only tools, recommends controlled actions, requires human approval before any state-changing operation, executes approved actions through the backend, verifies the resulting state, and then produces a grounded customer-safe response.
 
-**SupportPilot AI** is a local AI customer-support resolution agent built around a fictional SaaS platform called **CloudDesk**.
+The project evolved across three major versions:
 
-V1 established the agent foundation: tool calling, grounded retrieval, persistence, observability, and safety controls.
+**V1 — Understand + Retrieve**  
+**V2 — Investigate + Resolve**  
+**V3 — Investigate + Recommend + Approve + Act + Verify**
 
-V2 turns that foundation into a **multi-tool resolution system** that can investigate one customer issue across multiple business systems, combine evidence, determine a structured outcome, preserve conversational context, restore conversations after browser refreshes, and expose a separate internal Agent Inspector for engineering visibility.
-
-**Current release:** V2 — Multi-Tool Resolution & Customer Experience  
-**Status:** ✅ Complete  
-**Automated tests:** 55/55 passing  
-**Live Gemini evaluation:** 8/8 scenarios passed  
+V3 is the final major version of SupportPilot AI.
 
 ---
 
-## Customer Experience
+## Why I Built This
 
-The default interface is designed as a clean customer-support application rather than a developer dashboard.
+Many AI support demos stop after generating an answer.
 
-Customers see only the information they need:
+SupportPilot AI explores a harder problem:
 
-- support conversation
-- customer ID
-- current conversation state
-- quick actions
-- customer-friendly resolution status
-- assistant responses
-- message composer
+> **How can an AI system investigate a real support issue, recommend an operational action, involve a human at the correct decision point, safely execute that action, verify what actually happened, and communicate the result without overclaiming?**
 
-Internal tool calls and execution traces are kept out of the normal customer experience.
+The project was designed to demonstrate practical AI engineering concepts including:
 
-![SupportPilot Customer UI](docs/V2/01_Customer_Landing.png)
-
----
-
-## What V2 Demonstrates
-
-SupportPilot V2 expands the V1 foundation with:
-
-- Gemini-based multi-tool investigation
-- Five approved read-only customer-support tools
-- Dynamic sequential tool selection
-- Cross-system evidence accumulation
-- Payment-domain support
-- Explicit structured resolution states
-- Evidence-conflict handling
-- Tool-failure guardrails
-- Maximum investigation-step protection
-- Duplicate-call protection
-- Pydantic validation for tool arguments
-- PostgreSQL persistence
-- Semantic knowledge retrieval with Gemini embeddings + pgvector
-- Browser conversation restoration
-- Bounded recent conversational context
-- Safe Markdown rendering
-- Separate customer UI and Agent Inspector
-- Persisted tool sequence, latency, resolution and traces
-- 55 automated tests
-- 8 live Gemini smoke scenarios
+- Agentic investigation
+- Multi-tool orchestration
+- Retrieval-grounded support
+- Human-in-the-loop workflows
+- Controlled backend actions
+- Approval and execution separation
+- Idempotency
+- Customer isolation
+- Transaction rollback
+- Post-action verification
+- Auditability
+- Failure-aware customer communication
+- Automated evaluation and security validation
 
 ---
 
-# How SupportPilot V2 Works
+# V3 Architecture
 
-A customer request does not go directly from the LLM to an answer.
+SupportPilot AI V3 follows this lifecycle:
 
 ```text
-Customer
-   │
-   ▼
-SupportPilot Customer UI
-   │
-   ▼
-FastAPI
-   │
-   ▼
-Agent Orchestrator
-   │
-   ▼
-Gemini
-   │
-   ├── Decide which approved tool is required
-   │
-   ▼
-Tool 1
-   │
-   ▼
-Structured Evidence
-   │
-   ▼
-Gemini
-   │
-   ├── Is more evidence required?
-   │         │
-   │         ├── YES → Tool 2 / Tool 3
-   │         │
-   │         └── NO
-   │
-   ▼
-Resolution Engine
-   │
-   ▼
-Customer-Safe Response
+Customer Problem
+      ↓
+AI Investigation
+      ↓
+Read-Only Tool Calls
+      ↓
+Evidence Collection
+      ↓
+Structured Resolution
+      ↓
+Action Recommendation
+      ↓
+Human Approval / Rejection
+      ↓
+Explicit Execution
+      ↓
+Backend Safety Validation
+      ↓
+Controlled Action
+      ↓
+Post-Action Verification
+      ↓
+Grounded Customer Response
+      ↓
+Audit Trail
 ```
 
-Gemini's automatic function execution is intentionally not used as an opaque black box.
+### Core Principle
 
-SupportPilot manages the tool loop explicitly so that tool selection, validated arguments, execution results, errors, latency, persistence, traces, and final resolution remain visible to the application.
+The LLM is allowed to:
 
----
+- investigate
+- reason over tool results
+- collect evidence
+- classify the issue
+- recommend an action
 
-# V2 Support Tools
+The LLM is **not allowed to directly perform business mutations**.
 
-V2 exposes exactly five approved read-only tools.
-
-| Tool | Purpose |
-|---|---|
-| `get_customer()` | Retrieve customer identity and account status |
-| `get_subscription()` | Retrieve current plan, requested plan, subscription status and sync state |
-| `get_payment_status()` | Retrieve deterministic CloudDesk payment information |
-| `get_service_status()` | Check active CloudDesk service incidents |
-| `search_knowledge_base()` | Search documented CloudDesk support knowledge |
-
-The model chooses tools based on the customer problem and the evidence returned during the investigation.
-
-The orchestration is **not hardcoded** to always execute every tool.
+All state-changing operations remain under deterministic backend control.
 
 ---
 
-# Flagship V2 Scenario
+## System Architecture
 
-The main V2 scenario demonstrates cross-system investigation.
+```mermaid
+flowchart TD
+    A[Customer Request] --> B[AI Investigation]
 
-Customer:
+    B --> C[Read-Only Tool Registry]
 
-```text
-CUS-1007
+    C --> D[Customer]
+    C --> E[Subscription]
+    C --> F[Payment]
+    C --> G[Service Status]
+    C --> H[Knowledge Base]
+
+    D --> I[Evidence + Structured Resolution]
+    E --> I
+    F --> I
+    G --> I
+    H --> I
+
+    I --> J{Action Required?}
+
+    J -->|No| K[Grounded Customer Response]
+
+    J -->|Yes| L[Action Proposal]
+
+    L --> M[Human Review]
+
+    M -->|Reject| N[No Business Mutation]
+    M -->|Approve| O[Explicit Execute]
+
+    O --> P[Backend Validation]
+    P --> Q[Controlled Action]
+    Q --> R[Post-Action Verification]
+
+    R -->|Verified| S[Customer-Safe Final Response]
+    R -->|Failed| T[Escalation / Safe Failure State]
+
+    N --> U[Audit Trail]
+    S --> U
+    T --> U
 ```
 
-Synthetic CloudDesk state:
+---
+
+# Read-Only AI Tool Boundary
+
+Gemini receives access only to investigation tools:
 
 ```text
-Customer Account       ACTIVE
-Current Plan           BASIC
-Requested Plan         PRO
-Subscription Sync      FAILED
-Payment                SUCCESS
-Payment For            PRO
-```
-
-Customer asks:
-
-```text
-I paid for Pro, but my account still shows Basic. What happened?
-```
-
-SupportPilot investigates:
-
-```text
-Customer Request
-      │
-      ▼
+get_customer()
 get_subscription()
-      │
-      ▼
-Current Plan: BASIC
-Requested Plan: PRO
-Sync Status: FAILED
-      │
-      ▼
 get_payment_status()
-      │
-      ▼
-Payment Status: SUCCESS
-Payment Plan: PRO
-      │
-      ▼
-Compare Evidence
-      │
-      ▼
-Payment succeeded
-but requested plan was not applied
-      │
-      ▼
-ESCALATION_REQUIRED
+get_service_status()
+search_knowledge_base()
 ```
 
-![SupportPilot Flagship Escalation](docs/V2/02_Flagship_Escalation.png)
+These tools allow the model to understand the issue without changing customer or business state.
 
-The customer-facing response explains what was verified without claiming that SupportPilot repaired or modified the subscription.
+The V3 action layer is intentionally **not registered as an LLM tool**.
+
+This separation creates a clear security boundary:
+
+```text
+AI → investigate and recommend
+Backend → validate and execute
+Human → authorize
+```
 
 ---
 
-# Structured Resolution Layer
+# Controlled Actions
 
-V2 introduces four explicit investigation outcomes.
+V3 introduces three controlled business actions.
 
-## `RESOLVED`
-
-The available evidence supports a reliable answer or confirmed resolution.
-
-## `NEEDS_INFORMATION`
-
-The investigation cannot proceed because required information is missing.
-
-Example:
-
-```text
-Customer ID cannot be verified
-→ NEEDS_INFORMATION
-```
-
-## `UNRESOLVED`
-
-The investigation completed, but available evidence is insufficient to reach a reliable conclusion.
-
-Examples:
-
-```text
-Payment still pending
-→ UNRESOLVED
-```
-
-```text
-Related documentation retrieved,
-but it does not confirm the requested fact
-→ UNRESOLVED
-```
-
-## `ESCALATION_REQUIRED`
-
-The available evidence confirms a real issue that the V2 read-only agent cannot safely resolve itself.
-
-Example:
-
-```text
-Payment          SUCCESS
-Requested Plan   PRO
-Current Plan     BASIC
-Sync Status      FAILED
-
-→ ESCALATION_REQUIRED
-```
-
-A structured resolution can contain:
-
-```json
-{
-  "resolution_status": "ESCALATION_REQUIRED",
-  "issue_type": "subscription_upgrade_failure",
-  "summary": "Payment succeeded but the requested Pro plan was not applied.",
-  "evidence": [
-    "Current plan is Basic",
-    "Requested plan is Pro",
-    "Subscription synchronization failed",
-    "Payment completed successfully"
-  ]
-}
-```
-
-The customer receives natural language instead of raw internal state.
+| Action | Purpose | State Change | Verification |
+|---|---|---|---|
+| `retry_subscription_sync()` | Repair a verified paid upgrade where subscription synchronization failed | Updates simulated subscription state | Subscription is independently re-read and must match the requested plan |
+| `create_support_ticket()` | Escalate an unresolved or unsafe-to-remediate issue | Creates a support case | Ticket is re-read and validated |
+| `request_refund_review()` | Create a human billing review for an explicit refund request | Creates a refund-review record | Review record must exist in `PENDING_REVIEW` |
 
 ---
 
-# Agent Inspector
+## Important Refund Safety Boundary
 
-V2 separates the customer interface from internal engineering observability.
+SupportPilot AI **never automatically issues refunds**.
 
-Customer application:
+A successful refund workflow creates a review request such as:
+
+```text
+RR-XXXXXXXXXXXX
+Status: PENDING_REVIEW
+```
+
+The original payment remains unchanged.
+
+This allows the system to acknowledge and track the request without falsely claiming that money was returned.
+
+---
+
+# Human-in-the-Loop Workflow
+
+Approval and execution are intentionally separate operations.
+
+```text
+PENDING_APPROVAL
+       ↓
+Human Approves
+       ↓
+APPROVED
+       ↓
+Still No Mutation
+       ↓
+Explicit Execute
+       ↓
+EXECUTING
+       ↓
+SUCCEEDED / FAILED
+       ↓
+Post-Action Verification
+       ↓
+VERIFIED / FAILED
+```
+
+An approval alone does **not** modify customer state.
+
+Execution must be triggered separately.
+
+---
+
+# V3 Safety & Integrity Controls
+
+The action layer implements several safeguards designed around real operational failure modes.
+
+### Server-Side Approval Enforcement
+
+A pending or rejected proposal cannot execute.
+
+Approval state is checked by the backend rather than trusted from the frontend.
+
+### Exact Action Allow-List
+
+Only these actions may execute:
+
+```text
+retry_subscription_sync
+create_support_ticket
+request_refund_review
+```
+
+Unknown or tampered action names are rejected.
+
+### Customer Isolation
+
+Before execution, the backend revalidates relationships between:
+
+- proposal
+- conversation
+- agent run
+- customer
+- payment
+- action arguments
+
+Cross-customer mutations are blocked.
+
+### Precondition Revalidation
+
+Conditions are checked again immediately before execution.
+
+The system does not assume that the state observed during investigation is still valid.
+
+### Idempotency
+
+Repeated execution requests cannot perform the same business mutation multiple times.
+
+### Transaction Safety
+
+State-changing business operations execute inside a database savepoint.
+
+If an action fails after partially mutating state:
+
+```text
+Business mutation → ROLLBACK
+Audit execution record → PRESERVED
+```
+
+### Verified-Write Rule
+
+A state-changing action is committed only when post-action verification succeeds.
+
+Execution success alone is not treated as proof of resolution.
+
+### Rejection Safety
+
+Rejected proposals cause zero business-state changes.
+
+Where appropriate, the system can generate a safer escalation proposal instead.
+
+---
+
+# User Interfaces
+
+SupportPilot separates three different audiences.
+
+## Customer Workspace
+
+Route:
 
 ```text
 /
 ```
 
-Internal Agent Inspector:
+Designed for end customers.
+
+The customer interface contains:
+
+- conversational support
+- customer-safe status
+- resolution messages
+- case references
+- refund-review references
+
+It deliberately hides:
+
+- proposal IDs
+- action names
+- approval controls
+- execution controls
+- internal payloads
+- raw traces
+- technical audit data
+
+### Customer Workspace
+
+![SupportPilot AI Customer Workspace](docs/V3/v3_01_customer_ui_home_final.png)
+
+---
+
+## Operations Workspace
+
+Route:
+
+```text
+/operations
+```
+
+Designed for the human operator reviewing AI recommendations.
+
+It provides:
+
+- review queue
+- customer context
+- investigation evidence
+- turn outcome
+- overall case state
+- recommended action
+- approval/rejection controls
+- separate execution control
+- execution status
+- verification status
+- before/after state
+- escalation handoff
+- collapsed technical audit details
+
+### Pending Human Approval
+
+![Pending Subscription Approval](docs/V3/v3_02_operations_pending_approval_subscription_final.png)
+
+### Approved Action — Awaiting Explicit Execution
+
+![Approved Awaiting Execution](docs/V3/v3_03_operations_approved_awaiting_execution_final.png)
+
+### Verified Subscription Remediation
+
+![Verified Subscription Resolution](docs/V3/v3_04_operations_subscription_verified_final.png)
+
+---
+
+## Engineering Inspector
+
+Route:
 
 ```text
 /debug
 ```
 
-![SupportPilot Agent Inspector](docs/V2/03_Agent_Inspector_Flagship_Run.png)
+The debug surface is intended for structured application observability.
 
-The Agent Inspector exposes structured application-level information including:
-
-- Run ID
-- Conversation ID
-- Customer ID
-- Request message
-- Detected intent
-- Prompt version
-- Tool execution sequence
-- Tool arguments
-- Tool results
-- Tool status
-- Per-tool latency
-- Total agent latency
-- Resolution status
-- Issue type
-- Resolution summary
-- Structured trace
-- Final customer response
-- Errors where applicable
-
-Private model chain-of-thought is **not** exposed.
+It exposes technical execution information without exposing private model chain-of-thought.
 
 ---
 
-# Semantic Knowledge Retrieval
+# Flagship V3 Workflows
 
-SupportPilot's knowledge tool uses semantic retrieval rather than simple keyword matching.
+## 1. Subscription Upgrade Remediation
 
-```text
-Customer Question
-        │
-        ▼
-Gemini Embedding 2
-        │
-        ▼
-768-Dimensional Query Vector
-        │
-        ▼
-PostgreSQL + pgvector
-        │
-        ▼
-Cosine Similarity Search
-        │
-        ▼
-Relevant CloudDesk Passages
-        │
-        ▼
-Grounded Answer
-```
-
-### Example — Refund Policy
-
-Customer:
+Example customer state:
 
 ```text
-What is CloudDesk's refund policy?
+Customer: CUS-1007
+Current Plan: BASIC
+Requested Plan: PRO
+Payment: SUCCESS
+Subscription Sync: FAILED
 ```
 
-SupportPilot retrieves the relevant CloudDesk refund-policy passage and answers from that evidence.
+Investigation finds sufficient evidence that the customer successfully paid for the requested upgrade but account synchronization failed.
 
-![Knowledge-Grounded Refund Policy](docs/V2/04_Knowledge_Grounded_Refund_Policy.png)
+The AI recommends:
 
-### Semantic stack
+```text
+retry_subscription_sync
+```
 
-| Component | Implementation |
-|---|---|
-| Embedding model | `gemini-embedding-2` |
-| Vector dimensions | 768 |
-| Vector storage | PostgreSQL + pgvector |
-| Retrieval | Cosine similarity |
-| Knowledge tool | `search_knowledge_base()` |
+The human approves the proposal.
+
+No state changes yet.
+
+The human explicitly executes the approved action.
+
+The backend:
+
+1. revalidates customer and subscription state
+2. verifies successful payment for the requested plan
+3. retries the simulated synchronization
+4. independently re-reads subscription state
+5. confirms:
+
+```text
+Plan: PRO
+Sync: SUCCESS
+```
+
+Only then is the case considered resolved.
+
+### Customer Resolution
+
+![Customer Subscription Resolved](docs/V3/v3_05_customer_subscription_resolved_final.png)
 
 ---
 
-# Grounding & Hallucination Control
+## 2. Refund Review
 
-V2 carries forward and strengthens the grounding rules established in V1.
+A customer explicitly requests a refund after a verified successful payment.
 
-```text
-Semantic similarity ≠ factual proof
+The AI investigates the payment and relevant support policy.
 
-Missing documentation ≠ evidence that something is false
-
-NOT_FOUND / ERROR ≠ negative business fact
-
-Conflicting system evidence must be investigated,
-not guessed away.
-
-A tool failure must never be presented
-as successful issue resolution.
-```
-
-### Example — Unsupported Lifetime Plan Question
-
-Customer:
+Rather than directly refunding the transaction, it recommends:
 
 ```text
-Does CloudDesk offer a lifetime subscription plan?
+request_refund_review
 ```
 
-The knowledge base contains related subscription material, but none of it confirms whether a lifetime plan exists.
-
-Correct behavior:
+After human approval and explicit execution, the backend creates a review record:
 
 ```text
-The available CloudDesk documentation does not provide enough
-information to confirm whether CloudDesk offers a lifetime
-subscription plan.
+RR-XXXXXXXXXXXX
+Status: PENDING_REVIEW
 ```
 
-Structured result:
+The payment remains:
 
 ```text
-UNRESOLVED
-knowledge_evidence_unavailable
+SUCCESS
 ```
 
-Incorrect behavior would be:
+### Verified Refund Review
 
-```text
-CloudDesk does not offer lifetime subscriptions.
-```
+![Refund Review Verified](docs/V3/v3_06_operations_refund_review_verified_final.png)
 
-The grounding principle remains:
-
-```text
-Missing evidence ≠ evidence that something is false
-```
+The customer receives a safe response explaining that the refund request has been submitted for human review and that no refund was automatically issued.
 
 ---
 
-# Conversational Context & Restoration
-
-V2 preserves customer conversations across browser refreshes.
-
-```text
-Conversation created
-        │
-        ▼
-conversation_id saved locally
-        │
-        ▼
-Messages persisted in PostgreSQL
-        │
-        ▼
-Browser refresh
-        │
-        ▼
-conversation_id recovered
-        │
-        ▼
-Persisted messages loaded
-        │
-        ▼
-Conversation restored
-```
-
-V2 also supplies a bounded set of recent persisted messages to the agent.
-
-This allows follow-ups such as:
-
-```text
-User:
-I paid for Pro, but my account still shows Basic.
-
-Agent:
-The payment succeeded, but the requested upgrade
-was not applied because subscription synchronization failed.
-
-User:
-Why did it fail?
-```
-
-The second request can understand what **"it"** refers to without introducing a long-term memory architecture.
-
----
-
-# Evidence Conflict Handling
-
-V2 treats contradictory system states as evidence of a problem.
+## 3. Support Ticket Escalation
 
 Example:
 
 ```text
-Payment System
-SUCCESS
-
-Subscription System
+Customer: CUS-1005
 Current Plan: BASIC
 Requested Plan: PRO
-Sync Status: FAILED
+Subscription Sync: FAILED
+Payment Evidence: NOT FOUND
 ```
 
-SupportPilot must **not** silently convert this into:
+Retrying the subscription synchronization would be unsafe because successful payment cannot be verified.
+
+The system therefore recommends:
 
 ```text
-Your Pro subscription is active.
+create_support_ticket
 ```
 
-Instead, the contradiction becomes part of the structured investigation and can produce:
+Following approval and execution, a support ticket is created with:
+
+- customer context
+- issue type
+- priority
+- evidence
+- summary
+- case status
+
+### Verified Support Ticket
+
+![Support Ticket Verified](docs/V3/v3_07_operations_support_ticket_verified_final.png)
+
+### Customer Escalation State
+
+![Customer Case Escalated](docs/V3/v3_08_customer_case_escalated_final.png)
+
+The customer receives a case reference without being falsely told that the underlying problem has already been resolved.
+
+---
+
+# Customer Case States
+
+SupportPilot distinguishes between an AI turn outcome and the overall customer case.
+
+Examples include:
 
 ```text
-ESCALATION_REQUIRED
-subscription_upgrade_failure
+RESOLVED
+CASE_OPEN
+UNDER_REVIEW
+NEEDS_SUPPORT
+APPROVED_AWAITING_EXECUTION
+```
+
+This prevents a successful tool call or action proposal from being confused with actual issue resolution.
+
+---
+
+# API Highlights
+
+### Actions
+
+```text
+GET  /api/v1/actions
+GET  /api/v1/actions/{proposal_id}
+
+POST /api/v1/actions/{proposal_id}/approve
+POST /api/v1/actions/{proposal_id}/reject
+POST /api/v1/actions/{proposal_id}/execute
+```
+
+### Customer Case
+
+```text
+GET /api/v1/support/conversations/{conversation_id}/case-status
+```
+
+The frontend never bypasses these backend controls.
+
+---
+
+# Validation & Testing
+
+V3 was validated through automated regression testing, deterministic evaluation, security auditing, and manual end-to-end workflow testing.
+
+| Validation | Result |
+|---|---:|
+| Automated pytest suite | **144 / 144 PASS** |
+| Formal deterministic V3 evaluation | **14 / 14 PASS** |
+| Security / repository audit | **18 / 18 PASS** |
+| Final flagship manual E2E workflows | **3 / 3 PASS** |
+| Final UI visual review | **PASS** |
+
+---
+
+## Formal Evaluation Scenarios
+
+The deterministic evaluation covers scenarios including:
+
+- successful paid upgrade with failed synchronization
+- missing payment evidence
+- explicit refund request
+- pending payment
+- failed payment
+- already-refunded payment
+- cross-customer conflicts
+- cross-plan conflicts
+- service incidents
+- invalid customers
+- tool failures
+- knowledge-base misses
+- weak semantic evidence
+- already-completed upgrades
+
+Run the evaluation with:
+
+```powershell
+python -m scripts.run_v3_evaluation
 ```
 
 ---
 
-# Payment Domain
+# Security Audit
 
-V2 introduces a synthetic CloudDesk payment system.
+The repository includes a repeatable V3 security audit covering:
 
-Payment records can contain:
+- `.env` exclusion
+- secret scanning
+- safe `.env.example`
+- read-only Gemini tool registry
+- exact controlled-action allow-list
+- server-side approval enforcement
+- unknown-action rejection
+- duplicate execution protection
+- customer isolation
+- verified-write rollback
+- lifecycle persistence
+- customer UI action isolation
+- private reasoning exposure checks
+- synthetic-data verification
+- repository-noise checks
 
-```text
-Payment ID
-Customer ID
-Transaction Reference
-Plan
-Amount
-Currency
-Payment Status
-Payment Date
+Run:
+
+```powershell
+python -m scripts.run_v3_security_audit
 ```
 
-Supported deterministic statuses:
+Validated result:
 
 ```text
-SUCCESS
-FAILED
-PENDING
-REFUNDED
-```
+18 PASS
+0 WARN
+0 FAIL
 
-Example scenarios include:
-
-| Scenario | Expected behavior |
-|---|---|
-| Payment SUCCESS + upgrade applied | `RESOLVED` |
-| Payment FAILED | Explain failed payment safely |
-| Payment PENDING | Do not claim success or failure |
-| Payment missing | `UNRESOLVED` |
-| Payment SUCCESS + plan BASIC + sync FAILED | `ESCALATION_REQUIRED` |
-
----
-
-# Technical Architecture
-
-```text
-app/
-│
-├── agent/
-│   ├── orchestrator.py
-│   ├── resolution.py
-│   └── schemas.py
-│
-├── api/
-│   ├── debug.py
-│   ├── health.py
-│   └── support.py
-│
-├── db/
-│   ├── models.py
-│   ├── schema.py
-│   ├── seed.py
-│   └── session.py
-│
-├── tools/
-│   ├── customer.py
-│   ├── subscription.py
-│   ├── payment.py
-│   ├── service_status.py
-│   └── knowledge.py
-│
-├── templates/
-│   ├── index.html
-│   └── debug.html
-│
-├── static/
-│   ├── app.js
-│   ├── styles.css
-│   ├── debug.js
-│   └── debug.css
-│
-├── config.py
-└── main.py
-```
-
-Additional project areas:
-
-```text
-knowledge_base/
-└── Synthetic CloudDesk support documents
-
-scripts/
-├── bootstrap.py
-├── embed_knowledge.py
-├── manual_tool_check.py
-└── check_structure.py
-
-tests/
-├── unit/
-├── integration/
-└── workflows/
-
-docs/
-├── V1/
-└── V2/
+Security/repository audit: PASS
 ```
 
 ---
 
 # Technology Stack
 
-| Area | Technology |
-|---|---|
-| Language | Python 3.12 |
-| Backend | FastAPI |
-| Validation | Pydantic |
-| ORM | SQLAlchemy |
-| Database | PostgreSQL |
-| Database Driver | psycopg |
-| Vector Search | pgvector |
-| LLM | Gemini |
-| Chat model | `gemini-3.5-flash-lite` |
-| Embeddings | `gemini-embedding-2` |
-| Frontend | HTML, CSS, JavaScript |
-| Testing | pytest |
-| API Testing | FastAPI TestClient / httpx |
-| Source Control | Git + GitHub |
+### Backend
+
+- Python
+- FastAPI
+- PostgreSQL
+- SQLAlchemy-style relational persistence
+- Pydantic validation
+
+### AI
+
+- Google Gemini
+- Tool calling
+- Structured responses
+- Retrieval-grounded support investigation
+
+### Knowledge Layer
+
+- Local Markdown knowledge base
+- Semantic retrieval
+- Evidence-grounded resolution
+
+### Frontend
+
+- HTML
+- CSS
+- Vanilla JavaScript
+
+### Quality
+
+- pytest
+- deterministic scenario evaluation
+- integration testing
+- workflow testing
+- security/repository audit
 
 ---
 
-# Data & Persistence
-
-SupportPilot persists application and agent activity in PostgreSQL.
-
-Core entities include:
+# Project Structure
 
 ```text
-customers
-subscriptions
-payments
-service_incidents
-documents
-document_chunks
-conversations
-messages
-agent_runs
-tool_executions
-```
-
-V2 also persists:
-
-```text
-resolution_status
-issue_type
-resolution_summary
-final_response
-trace_json
-```
-
-A typical multi-tool interaction leaves a persistent trail:
-
-```text
-Conversation
-     │
-     ▼
-User Message
-     │
-     ▼
-Agent Run
-     │
-     ├── Tool Execution 1
-     ├── Tool Execution 2
-     └── Tool Execution 3 if needed
-     │
-     ▼
-Structured Resolution
-     │
-     ▼
-Assistant Message
-```
-
----
-
-# Synthetic CloudDesk Environment
-
-CloudDesk is a fictional SaaS environment created specifically for SupportPilot.
-
-No real customer data is used.
-
-Important deterministic V2 scenarios include:
-
-| ID | Scenario |
-|---|---|
-| `CUS-1001` | Basic active subscription; failed Pro payment |
-| `CUS-1002` | Pro active subscription; successful payment |
-| `CUS-1003` | Suspended Pro customer |
-| `CUS-1004` | Basic → Pro upgrade pending; payment pending |
-| `CUS-1005` | Upgrade requested; sync failed; payment record missing |
-| `CUS-1006` | Successful Pro upgrade |
-| `CUS-1007` | Payment succeeded but Pro upgrade sync failed |
-| `INC-2001` | Active SEV2 CloudDesk core incident in EU |
-
-These deterministic states make testing and evaluation repeatable.
-
----
-
-# Knowledge Base
-
-The V2 knowledge base contains synthetic CloudDesk support documentation:
-
-```text
-payment_troubleshooting.md
-refund_policy.md
-service_status.md
-subscription_changes.md
-support_scope.md
-```
-
-These documents exist only for the fictional CloudDesk environment.
-
----
-
-# API Surface
-
-| Method | Endpoint | Purpose |
-|---|---|---|
-| `GET` | `/` | Customer SupportPilot UI |
-| `GET` | `/debug` | Internal Agent Inspector |
-| `GET` | `/health` | Application/database/agent health |
-| `POST` | `/api/v1/support/chat` | Process a customer support request |
-| `GET` | `/api/v1/support/conversations/{conversation_id}` | Restore persisted conversation history |
-| `GET` | `/api/v1/debug/runs/{run_id}` | Inspect a persisted agent run |
-| `GET` | `/api/v1/debug/conversations/{conversation_id}/runs` | Inspect runs for a conversation |
-
-FastAPI also exposes interactive OpenAPI documentation at:
-
-```text
-/docs
+SupportPilot-AI/
+│
+├── app/
+│   ├── actions/
+│   │   ├── recommendations.py
+│   │   ├── schemas.py
+│   │   ├── service.py
+│   │   └── tools.py
+│   │
+│   ├── agent/
+│   ├── api/
+│   ├── db/
+│   ├── services/
+│   ├── static/
+│   ├── templates/
+│   └── tools/
+│
+├── docs/
+│   ├── V1/
+│   ├── V2/
+│   └── V3/
+│
+├── knowledge_base/
+│
+├── scripts/
+│   ├── bootstrap.py
+│   ├── embed_knowledge.py
+│   ├── run_v3_evaluation.py
+│   └── run_v3_security_audit.py
+│
+├── tests/
+│   ├── evaluation/
+│   ├── integration/
+│   ├── unit/
+│   └── workflows/
+│
+├── .env.example
+├── requirements.txt
+├── pytest.ini
+└── README.md
 ```
 
 ---
 
-# Agent Safety Limits
+# Running SupportPilot AI Locally
 
-The multi-tool loop includes explicit safety boundaries:
-
-```text
-Maximum tool-call steps
-Approved tool registry only
-Pydantic argument validation
-Unknown-tool rejection
-Duplicate-call protection
-Safe incomplete-result handling
-Tool error handling
-```
-
-If the agent reaches its maximum investigation depth without enough evidence, it stops safely rather than continuing indefinitely.
-
----
-
-# Guardrails
-
-SupportPilot V2 is designed to:
-
-- never invent customer information
-- never invent subscription information
-- never invent payment state
-- never invent incidents
-- never invent CloudDesk policies
-- use approved tools for account-specific facts
-- use the exact active customer ID
-- ask for valid customer identification when required
-- never expose another customer's data
-- treat structured tool evidence as the source of truth
-- distinguish semantic relevance from factual support
-- investigate conflicting evidence rather than hide it
-- never convert tool failure into a successful business conclusion
-- avoid claiming unsupported state-changing actions were completed
-- keep destructive account actions out of V2
-
-Current prompt version:
-
-```text
-v2-multi-tool-2
-```
-
----
-
-# Testing
-
-V2 was not considered complete until the full automated suite passed.
-
-```text
-55 passed
-```
-
-The suite covers:
-
-- tool schemas
-- payment tooling
-- resolution logic
-- orchestrator helpers
-- health API
-- support API
-- conversation restoration
-- customer UI
-- Agent Inspector
-- safe Markdown
-- multi-tool workflows
-- missing data
-- invalid arguments
-- tool failures
-- maximum-step handling
-- evidence conflict handling
-- grounding protections
-- resolution persistence
-- trace persistence
-
-Run:
+## 1. Clone the Repository
 
 ```powershell
-python -m pytest -q
+git clone <repository-url>
+cd SupportPilot-AI
 ```
 
-Expected:
-
-```text
-55 passed
-```
-
-Automated workflow tests primarily use deterministic local systems and mocked Gemini behavior so normal test execution does not unnecessarily consume live model quota.
-
----
-
-# Live Gemini Evaluation
-
-V2 also went through a small live Gemini evaluation before completion.
-
-Eight scenarios were manually validated:
-
-```text
-1. Flagship Pro-upgrade escalation
-2. Conversational follow-up: "Why did it fail?"
-3. Context-aware re-check: "Can you check that again?"
-4. EU service incident diagnosis
-5. Refund-policy knowledge grounding
-6. Unsupported lifetime-plan grounding
-7. Invalid customer handling
-8. Pending payment handling
-```
-
-Final result:
-
-```text
-8 / 8 passed
-```
-
-The live evaluation exposed issues that were fixed before V2 was considered complete, including:
-
-- embedding batching behavior
-- contextual escalation wording
-- distinguishing retrieved semantic candidates from sufficient factual evidence
-
----
-
-# Local Setup
-
-## 1. Create a virtual environment
+## 2. Create a Virtual Environment
 
 ```powershell
 python -m venv .venv
-```
-
-Activate it on Windows PowerShell:
-
-```powershell
 .\.venv\Scripts\Activate.ps1
 ```
 
----
-
-## 2. Install dependencies
+## 3. Install Dependencies
 
 ```powershell
-python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
+pip install -r requirements.txt
 ```
 
-A Windows helper is also included:
+## 4. Configure Environment Variables
 
-```powershell
-.\setup.ps1
-```
-
----
-
-## 3. Create PostgreSQL database
-
-```sql
-CREATE DATABASE clouddesk_support;
-```
-
-Connect:
-
-```powershell
-psql -U postgres -h localhost -d clouddesk_support
-```
-
-Enable pgvector:
-
-```sql
-CREATE EXTENSION IF NOT EXISTS vector;
-```
-
----
-
-## 4. Configure environment variables
-
-Copy:
-
-```text
-.env.example
-```
-
-to:
-
-```text
-.env
-```
-
-Example:
+Create `.env` from the provided template:
 
 ```powershell
 Copy-Item .env.example .env
 ```
 
-Configure your local PostgreSQL connection and Gemini API key.
+Configure the local values, including your Gemini API key and PostgreSQL connection.
+
+Example:
 
 ```env
 APP_NAME=SupportPilot AI
@@ -948,235 +758,173 @@ KNOWLEDGE_MIN_SCORE=0.55
 MAX_AGENT_STEPS=5
 ```
 
-> Never commit your real `.env` file.
+Never commit the real `.env` file.
 
----
+## 5. Prepare the Local Environment
 
-## 5. Initialize CloudDesk data and knowledge embeddings
+Ensure PostgreSQL is running and the configured database is available.
 
-Normal setup:
-
-```powershell
-python -m scripts.bootstrap --embed
-```
-
-For a completely fresh synthetic SupportPilot database:
+Then run:
 
 ```powershell
-python -m scripts.bootstrap --reset --embed
-```
-
-> `--reset` drops and recreates SupportPilot tables. Use it only when a clean synthetic database is intended.
-
----
-
-## 6. Run tests
-
-```powershell
-python -m pytest -q
-```
-
-Expected:
-
-```text
-55 passed
-```
-
----
-
-## 7. Run SupportPilot
-
-```powershell
-python -m uvicorn app.main:app --reload
-```
-
-Customer UI:
-
-```text
-http://127.0.0.1:8000/
-```
-
-Agent Inspector:
-
-```text
-http://127.0.0.1:8000/debug
-```
-
-Swagger / OpenAPI:
-
-```text
-http://127.0.0.1:8000/docs
-```
-
----
-
-# Useful Manual Checks
-
-Validate basic tool behavior:
-
-```powershell
-python -m scripts.manual_tool_check
-```
-
-Validate project structure:
-
-```powershell
-python -m scripts.check_structure
-```
-
-Regenerate missing knowledge embeddings:
-
-```powershell
+python -m scripts.bootstrap
 python -m scripts.embed_knowledge
 ```
 
----
+## 6. Start the Application
 
-# Security & Repository Hygiene
-
-The repository excludes:
-
-```text
-.env
-.venv/
-__pycache__/
-.pytest_cache/
-.coverage
-htmlcov/
-.idea/
-.vscode/
+```powershell
+uvicorn app.main:app --reload
 ```
 
-The repository must never contain:
-
-- Gemini API keys
-- PostgreSQL passwords
-- production credentials
-- real customer information
-
-All CloudDesk data used by SupportPilot is synthetic.
-
----
-
-# V2 Scope & Limitations
-
-V2 is intentionally a local portfolio implementation, not a production customer-support platform.
-
-The following are deliberately outside V2:
-
-- real customer data
-- real payment gateway integration
-- production authentication
-- real ticketing integrations
-- automatic refunds
-- automatic subscription changes
-- automatic payment retries
-- destructive/state-changing agent actions
-- human approval workflows
-- advanced long-term AI memory
-- production cloud deployment
-
-These capabilities are candidates for later versions.
-
----
-
-# V1 → V2 Progression
-
-## V1 — Agent Foundation
-
-V1 established:
-
-- Gemini tool calling
-- business-system tools
-- PostgreSQL persistence
-- semantic retrieval
-- grounding
-- observability
-- deterministic testing
-
-V1 release:
+Open:
 
 ```text
-v1.0.0
-28/28 automated tests
-```
+Customer UI
+http://127.0.0.1:8000/
 
-## V2 — Multi-Tool Resolution
+Operations
+http://127.0.0.1:8000/operations
 
-V2 adds:
-
-- fifth payment tool
-- multi-tool investigations
-- evidence accumulation
-- cross-system conflict handling
-- structured resolution outcomes
-- conversation restoration
-- contextual follow-ups
-- stronger grounding behavior
-- separate customer and internal interfaces
-- Agent Inspector
-- redesigned customer experience
-- expanded automated testing
-- live Gemini evaluation
-
-V2 validation:
-
-```text
-55/55 automated tests
-8/8 live Gemini scenarios
+Engineering Inspector
+http://127.0.0.1:8000/debug
 ```
 
 ---
 
-# V2 Completion Status
+# Running the Test Suite
 
-```text
-Environment                          ✅
-PostgreSQL                           ✅
-Synthetic CloudDesk data             ✅
-Five V2 tools                        ✅
-Gemini tool calling                  ✅
-Multi-tool orchestration             ✅
-Payment domain                       ✅
-Pydantic validation                  ✅
-Semantic pgvector retrieval          ✅
-Gemini embeddings                    ✅
-Evidence grounding                   ✅
-Conflict handling                    ✅
-Resolution engine                    ✅
-Conversation restoration             ✅
-Conversational follow-ups            ✅
-Persistence                          ✅
-Agent Inspector                      ✅
-Final customer UI                    ✅
-Automated tests                      ✅ 55/55
-Live Gemini evaluation               ✅ 8/8
-Manual UI validation                 ✅
+```powershell
+pytest
 ```
 
-## SupportPilot AI — V2 Multi-Tool Resolution
+Current V3 baseline:
 
-**Status: COMPLETE ✅**
-
----
-
-# Project Direction
-
-SupportPilot is being developed version by version as an AI engineering / Forward Deployed Engineering portfolio project.
-
-The goal is not only to demonstrate LLM integration, but to progressively explore:
-
-- tool-using AI systems
-- structured business-data integration
-- retrieval and grounding
-- agent observability
-- failure handling
-- customer-support workflows
-- multi-step resolution
-- human escalation
-- controlled agent actions
-- production-minded engineering practices
+```text
+144 passed
+```
 
 ---
 
-*Built locally as part of an AI / Forward Deployed Engineering portfolio.*
+# Version Evolution
+
+| Version | Focus | Key Evolution |
+|---|---|---|
+| **V1** | Understand + Retrieve | AI support foundation, read-only tools, grounded investigation |
+| **V2** | Investigate + Resolve | Multi-tool investigation, stronger resolution logic, richer support workflow |
+| **V3** | Recommend + Approve + Act + Verify | Human-in-the-loop actions, execution controls, verification, rollback, isolation and auditability |
+
+### Architectural Evolution
+
+```text
+V1
+Understand + Retrieve
+
+        ↓
+
+V2
+Investigate + Resolve
+
+        ↓
+
+V3
+Investigate + Recommend + Approve + Act + Verify
+```
+
+V3 represents the final major architectural milestone for SupportPilot AI.
+
+Future changes, if required, will be maintenance-level improvements rather than a new major version.
+
+---
+
+# What V3 Demonstrates
+
+SupportPilot AI is not intended to demonstrate only prompt engineering.
+
+The project demonstrates how an AI model can be placed inside a controlled software system where probabilistic reasoning and deterministic business logic have clearly separated responsibilities.
+
+### AI Responsibilities
+
+```text
+Understand
+Investigate
+Retrieve
+Correlate
+Recommend
+Explain
+```
+
+### Application Responsibilities
+
+```text
+Authorize
+Validate
+Mutate
+Persist
+Rollback
+Verify
+Audit
+```
+
+### Human Responsibilities
+
+```text
+Review
+Approve
+Reject
+Trigger execution
+Own high-impact decisions
+```
+
+That separation is the central architectural idea behind SupportPilot AI V3.
+
+---
+
+# Portfolio Scope
+
+SupportPilot AI is a **synthetic portfolio project**.
+
+The included customers, subscriptions, payments, tickets, refund reviews and support scenarios are simulated for demonstration and testing.
+
+The project does not connect to real:
+
+- payment processors
+- refund systems
+- customer accounts
+- CRM platforms
+- production support systems
+
+Controlled actions modify only the project's local simulated business state.
+
+Production concerns such as enterprise authentication, authorization/RBAC, external system integration, deployment infrastructure, rate limiting and production observability would require additional implementation before real-world use.
+
+---
+
+# Project Status
+
+```text
+SupportPilot AI V3
+FINAL MAJOR VERSION
+
+Automated Tests            144 / 144 PASS
+Formal Evaluation           14 / 14 PASS
+Security Audit              18 / 18 PASS
+Manual E2E                   3 / 3 PASS
+UI Review                         PASS
+```
+
+**SupportPilot AI V3 is feature-complete as a portfolio project.**
+
+Deployment is intentionally treated as a separate future exercise rather than part of the V3 application milestone.
+
+---
+
+## Author
+
+**Phaneendra Katakam**
+
+Cloud & DevOps Engineer transitioning toward AI / Forward Deployed Engineering, with a focus on building practical AI systems that combine investigation, operational workflows, human decision points, backend safety and measurable outcomes.
+
+---
+
+> **SupportPilot AI V3 — Investigate. Recommend. Approve. Act. Verify.**
