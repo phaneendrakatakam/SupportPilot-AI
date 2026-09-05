@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from app.api.actions import router as actions_router
 from app.api.debug import router as debug_router
 from app.api.health import router as health_router
 from app.api.support import router as support_router
@@ -25,9 +26,9 @@ async def lifespan(_app: FastAPI):
 
 app = FastAPI(
     title=settings.app_name,
-    version="0.2.0",
+    version="0.3.0",
     description=(
-        "SupportPilot AI V2 - local multi-tool customer-support resolution agent."
+        "SupportPilot AI V3 - human-in-the-loop customer-support resolution agent."
     ),
     lifespan=lifespan,
 )
@@ -35,6 +36,7 @@ app = FastAPI(
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 app.include_router(health_router)
 app.include_router(support_router)
+app.include_router(actions_router)
 app.include_router(debug_router)
 
 
@@ -42,6 +44,12 @@ app.include_router(debug_router)
 def support_ui() -> FileResponse:
     return FileResponse(TEMPLATES_DIR / "index.html")
 
+
+
+
+@app.get("/operations", include_in_schema=False)
+def operations_ui() -> FileResponse:
+    return FileResponse(TEMPLATES_DIR / "operations.html")
 
 @app.get("/debug", include_in_schema=False)
 def debug_ui() -> FileResponse:

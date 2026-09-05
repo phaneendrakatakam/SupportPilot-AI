@@ -2,513 +2,316 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-
     <meta
         name="viewport"
         content="width=device-width, initial-scale=1.0"
     >
-
     <meta
         name="theme-color"
-        content="#f6f8fc"
+        content="#f5f7fb"
     >
-
     <meta
         name="description"
-        content="SupportPilot AI - CloudDesk customer support assistant"
+        content="SupportPilot AI - CloudDesk customer support"
     >
 
     <title>SupportPilot AI</title>
 
     <link
         rel="stylesheet"
-        href="/static/styles.css?v=20260830-readable-2"
+        href="/static/styles.css?v=20260904-v3-viewport-composer-1"
     >
 </head>
 
 <body>
-    <div class="page-glow page-glow-one"></div>
-    <div class="page-glow page-glow-two"></div>
-
-    <div class="app-shell">
-
+    <div
+        id="app"
+        class="shell case-mode-neutral"
+    >
         <header class="topbar">
             <a
                 class="brand"
                 href="/"
-                aria-label="SupportPilot AI home"
+                aria-label="SupportPilot home"
             >
-                <span class="brand-mark" aria-hidden="true">
-                    <svg viewBox="0 0 28 28">
-                        <path
-                            d="M7.4 7.1A3.1 3.1 0 0 1 10.5 4h7A3.1 3.1 0 0 1 20.6 7.1v6.2a3.1 3.1 0 0 1-3.1 3.1h-3.8l-3.6 3.1c-.7.6-1.8.1-1.8-.8v-2.3a3.1 3.1 0 0 1-.9-2.2V7.1Z"
-                            fill="currentColor"
-                        />
-                        <path
-                            d="M11 9.2h6M11 12.2h4"
-                            fill="none"
-                            stroke="white"
-                            stroke-width="1.6"
-                            stroke-linecap="round"
-                        />
-                    </svg>
+                <span class="logo" aria-hidden="true">
+                    SP
                 </span>
 
                 <span class="brand-copy">
                     <strong>SupportPilot</strong>
-                    <span>CloudDesk support</span>
+                    <span>CloudDesk customer support</span>
                 </span>
             </a>
 
-            <div class="topbar-actions">
+            <div class="header-right">
                 <div
                     id="system-status"
-                    class="system-pill checking"
+                    class="online checking"
                     aria-live="polite"
                 >
-                    <span class="status-dot"></span>
+                    <span class="dot"></span>
                     <span class="status-text">
-                        Checking system
+                        Checking support
                     </span>
                 </div>
 
                 <button
                     id="new-conversation-button"
-                    class="new-chat-button"
+                    class="new-btn"
                     type="button"
                 >
-                    <svg
-                        viewBox="0 0 20 20"
-                        aria-hidden="true"
-                    >
-                        <path
-                            d="M10 4v12M4 10h12"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="1.8"
-                            stroke-linecap="round"
-                        />
-                    </svg>
-
-                    <span>New conversation</span>
+                    New conversation
                 </button>
             </div>
         </header>
 
 
-        <main class="workspace">
-
-            <aside class="inbox-rail">
-
-                <section class="rail-section customer-section">
-                    <div class="rail-heading">
-                        <span>Customer</span>
-                        <span class="rail-live-dot"></span>
+        <div class="layout">
+            <aside class="sidebar">
+                <section class="side-section">
+                    <div class="side-title">
+                        Your account
                     </div>
 
-                    <label
-                        class="customer-label"
-                        for="customer-id"
-                    >
-                        Customer ID
-                    </label>
-
-                    <div class="customer-input-wrap">
-                        <svg
-                            class="customer-icon"
-                            viewBox="0 0 20 20"
+                    <div class="profile">
+                        <div
+                            class="avatar"
                             aria-hidden="true"
                         >
-                            <circle
-                                cx="10"
-                                cy="7"
-                                r="3"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="1.5"
-                            />
-                            <path
-                                d="M4.7 16c.7-3 2.6-4.5 5.3-4.5s4.6 1.5 5.3 4.5"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="1.5"
-                                stroke-linecap="round"
-                            />
-                        </svg>
+                            C
+                        </div>
 
-                        <input
-                            id="customer-id"
-                            type="text"
-                            value="CUS-1007"
-                            placeholder="CUS-1007"
-                            autocomplete="off"
-                            spellcheck="false"
-                        >
+                        <div class="profile-copy">
+                            <strong>CloudDesk customer</strong>
+
+                            <label
+                                class="visually-hidden"
+                                for="customer-id"
+                            >
+                                Customer ID
+                            </label>
+
+                            <input
+                                id="customer-id"
+                                class="account-id-input"
+                                type="text"
+                                value="CUS-1007"
+                                placeholder="CUS-1007"
+                                autocomplete="off"
+                                spellcheck="false"
+                                aria-label="Customer ID"
+                            >
+                        </div>
                     </div>
                 </section>
 
 
-                <section class="rail-section">
-                    <div class="rail-heading">
-                        <span>Current conversation</span>
-                    </div>
-
-                    <div class="conversation-card active">
-                        <span class="conversation-icon">
-                            <svg viewBox="0 0 20 20" aria-hidden="true">
-                                <path
-                                    d="M4 5.5A2.5 2.5 0 0 1 6.5 3h7A2.5 2.5 0 0 1 16 5.5v5A2.5 2.5 0 0 1 13.5 13H10l-3.3 2.8V13h-.2A2.5 2.5 0 0 1 4 10.5z"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="1.5"
-                                    stroke-linejoin="round"
-                                />
-                            </svg>
-                        </span>
-
-                        <span class="conversation-card-copy">
-                            <strong
-                                id="session-state-label"
-                            >
-                                New session
-                            </strong>
-
-                            <small
-                                id="conversation-id-display"
-                            >
-                                New
-                            </small>
-                        </span>
-
-                        <span class="conversation-chevron">
-                            ›
-                        </span>
-                    </div>
-                </section>
-
-
-                <section class="rail-section quick-section">
-                    <div class="rail-heading">
-                        <span>Quick actions</span>
+                <section class="side-section">
+                    <div class="side-title">
+                        Popular help
                     </div>
 
                     <button
-                        class="quick-action"
-                        data-message="I paid for Pro, but my account still shows Basic. What happened?"
-                        type="button"
-                    >
-                        <span class="quick-action-icon">
-                            <svg viewBox="0 0 20 20" aria-hidden="true">
-                                <rect
-                                    x="3"
-                                    y="5"
-                                    width="14"
-                                    height="10"
-                                    rx="2"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="1.45"
-                                />
-                                <path
-                                    d="M3 8h14"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="1.45"
-                                />
-                            </svg>
-                        </span>
-
-                        <span>
-                            <strong>Pro upgrade issue</strong>
-                            <small>Payment + plan mismatch</small>
-                        </span>
-                    </button>
-
-                    <button
-                        class="quick-action"
+                        class="quick"
                         data-message="What subscription plan am I currently on?"
                         type="button"
                     >
-                        <span class="quick-action-icon">
-                            <svg viewBox="0 0 20 20" aria-hidden="true">
-                                <path
-                                    d="M4 5.5h12M4 10h8M4 14.5h5"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="1.45"
-                                    stroke-linecap="round"
-                                />
-                            </svg>
-                        </span>
-
-                        <span>
-                            <strong>Check my plan</strong>
-                            <small>Current subscription</small>
-                        </span>
+                        <strong>My subscription</strong>
+                        <small>Plan, upgrade and billing</small>
                     </button>
 
                     <button
-                        class="quick-action"
+                        class="quick"
+                        data-message="I paid for Pro, but my account still shows Basic. What happened?"
+                        type="button"
+                    >
+                        <strong>Payment issue</strong>
+                        <small>Charges and payment status</small>
+                    </button>
+
+                    <button
+                        class="quick"
                         data-message="Is the CloudDesk core service currently down in the EU region?"
                         type="button"
                     >
-                        <span class="quick-action-icon">
-                            <svg viewBox="0 0 20 20" aria-hidden="true">
-                                <path
-                                    d="M3.5 13.5h2.2l1.5-5 2.2 7 1.8-9 1.8 7h3.5"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="1.45"
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                />
-                            </svg>
-                        </span>
-
-                        <span>
-                            <strong>EU service status</strong>
-                            <small>Incident check</small>
-                        </span>
+                        <strong>Service status</strong>
+                        <small>Check CloudDesk availability</small>
                     </button>
 
                     <button
-                        class="quick-action"
+                        class="quick"
                         data-message="What is CloudDesk's refund policy?"
                         type="button"
                     >
-                        <span class="quick-action-icon">
-                            <svg viewBox="0 0 20 20" aria-hidden="true">
-                                <path
-                                    d="M6 3.5h6l3 3V16.5H6z"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="1.45"
-                                    stroke-linejoin="round"
-                                />
-                                <path
-                                    d="M12 3.5v3h3M8.5 10h4M8.5 13h3"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="1.45"
-                                    stroke-linecap="round"
-                                />
-                            </svg>
-                        </span>
-
-                        <span>
-                            <strong>Refund policy</strong>
-                            <small>CloudDesk knowledge</small>
-                        </span>
+                        <strong>Refunds</strong>
+                        <small>Policy and refund requests</small>
                     </button>
                 </section>
 
 
-                <div class="rail-footer">
-                    <span class="rail-footer-mark">
-                        SP
-                    </span>
+                <section class="side-section">
+                    <div class="side-title">
+                        Current case
+                    </div>
 
-                    <span>
-                        SupportPilot AI · V2
-                    </span>
+                    <div
+                        id="case-card"
+                        class="case-card neutral"
+                    >
+                        <strong id="side-case-title">
+                            No active case
+                        </strong>
+
+                        <span id="side-case-copy">
+                            Ask a support question to get started.
+                        </span>
+
+                        <div
+                            id="case-progress"
+                            class="case-progress"
+                            aria-hidden="true"
+                        >
+                            <span id="progress1"></span>
+                            <span id="progress2"></span>
+                            <span id="progress3"></span>
+                        </div>
+                    </div>
+                </section>
+
+
+                <div class="sidebar-footer">
+                    SupportPilot AI · V3 customer experience
                 </div>
             </aside>
 
 
-            <section class="conversation-panel">
-
-                <header class="conversation-header">
-                    <div class="conversation-title">
+            <main class="main">
+                <section class="hero">
+                    <div>
                         <span class="eyebrow">
                             SUPPORT CONVERSATION
                         </span>
 
                         <h1>
-                            How can I help today?
+                            How can we help?
                         </h1>
 
                         <p>
-                            Ask a CloudDesk support question and
-                            SupportPilot will investigate the relevant
-                            systems before answering.
+                            Tell us what happened. We’ll check the right
+                            CloudDesk systems before answering.
                         </p>
                     </div>
 
-                    <div class="header-badge">
-                        <span class="header-badge-dot"></span>
-                        Evidence-based support
+                    <div class="trust">
+                        Verified support answers
                     </div>
-                </header>
+                </section>
 
 
-                <div
-                    id="resolution-banner"
-                    class="resolution-banner"
+                <section
+                    id="status-card"
+                    class="status-card"
                     hidden
                     aria-live="polite"
                 >
+                    <div class="status-left">
+                        <div
+                            id="status-icon"
+                            class="status-icon"
+                            aria-hidden="true"
+                        >
+                            !
+                        </div>
+
+                        <div>
+                            <strong id="status-title">
+                                We found the issue
+                            </strong>
+
+                            <p id="status-copy"></p>
+                        </div>
+                    </div>
+
                     <div
-                        class="resolution-icon"
-                        aria-hidden="true"
-                    >
-                        <span></span>
-                    </div>
-
-                    <div class="resolution-copy">
-                        <span
-                            id="resolution-banner-label"
-                            class="resolution-banner-label"
-                        ></span>
-
-                        <span
-                            id="resolution-banner-text"
-                            class="resolution-banner-text"
-                        ></span>
-                    </div>
-                </div>
+                        id="status-badge"
+                        class="status-badge"
+                    ></div>
+                </section>
 
 
-                <div
+                <section
                     id="chat-messages"
-                    class="chat-messages"
+                    class="chat"
                     aria-live="polite"
                 >
-                    <div class="message-row assistant">
-                        <div class="assistant-avatar">
-                            <svg
-                                viewBox="0 0 24 24"
+                    <div class="row assistant welcome-message">
+                        <div class="ai-wrap">
+                            <div
+                                class="ai-avatar"
                                 aria-hidden="true"
                             >
-                                <path
-                                    d="M6.5 5.5h11A2.5 2.5 0 0 1 20 8v6.8a2.5 2.5 0 0 1-2.5 2.5H13l-3.3 2.4v-2.4H6.5A2.5 2.5 0 0 1 4 14.8V8a2.5 2.5 0 0 1 2.5-2.5Z"
-                                    fill="currentColor"
-                                />
-                                <circle
-                                    cx="8.5"
-                                    cy="11.2"
-                                    r="1"
-                                    fill="white"
-                                />
-                                <circle
-                                    cx="12"
-                                    cy="11.2"
-                                    r="1"
-                                    fill="white"
-                                />
-                                <circle
-                                    cx="15.5"
-                                    cy="11.2"
-                                    r="1"
-                                    fill="white"
-                                />
-                            </svg>
-                        </div>
-
-                        <div class="message-content">
-                            <div class="message-meta">
-                                <strong>SupportPilot</strong>
-                                <span>AI support agent</span>
+                                SP
                             </div>
 
-                            <div class="message-bubble markdown-content">
-                                <p>
-                                    Hi! I’m SupportPilot. What can I help
-                                    you with today?
-                                </p>
+                            <div class="message-content">
+                                <div class="meta">
+                                    <strong>SupportPilot</strong>
+                                    AI support assistant
+                                </div>
+
+                                <div class="bubble markdown-content">
+                                    <p>
+                                        Hi! Tell me what happened and I’ll
+                                        check the relevant CloudDesk systems
+                                        before answering.
+                                    </p>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
+                </section>
 
 
-                <div class="composer-zone">
+                <section class="composer-zone">
                     <form
                         id="chat-form"
                         class="composer"
                     >
-                        <div class="composer-input-wrap">
-                            <textarea
-                                id="message-input"
-                                rows="1"
-                                maxlength="4000"
-                                placeholder="Message SupportPilot..."
-                                aria-label="Message SupportPilot"
-                                required
-                            ></textarea>
-
-                            <span class="composer-hint">
-                                Enter to send · Shift + Enter for new line
-                            </span>
-                        </div>
+                        <textarea
+                            id="message-input"
+                            rows="1"
+                            placeholder="Describe your issue..."
+                            maxlength="4000"
+                            aria-label="Support message"
+                        ></textarea>
 
                         <button
                             id="send-button"
-                            class="send-button"
+                            class="send"
                             type="submit"
-                            aria-label="Send message"
                         >
-                            <span>Send</span>
-
-                            <svg
-                                viewBox="0 0 20 20"
-                                aria-hidden="true"
-                            >
-                                <path
-                                    d="M4 10h11M11 6l4 4-4 4"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="1.8"
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                />
-                            </svg>
+                            Send
                         </button>
                     </form>
 
-                    <div class="trust-line">
-                        <svg
-                            viewBox="0 0 18 18"
-                            aria-hidden="true"
-                        >
-                            <path
-                                d="M9 2.5 14.5 4.5v4c0 3.3-2.1 5.5-5.5 7-3.4-1.5-5.5-3.7-5.5-7v-4z"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="1.35"
-                                stroke-linejoin="round"
-                            />
-                            <path
-                                d="m6.8 9 1.4 1.4 3.2-3.5"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="1.35"
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                            />
-                        </svg>
-
+                    <div class="helper">
                         <span>
                             SupportPilot checks verified CloudDesk data
-                            and won’t guess when evidence is unclear.
+                            before answering.
+                        </span>
+
+                        <span>
+                            Enter to send · Shift + Enter for new line
                         </span>
                     </div>
-                </div>
-            </section>
-        </main>
-
-        <footer class="page-footer">
-            <span>
-                CloudDesk local demo
-            </span>
-
-            <span>
-                SupportPilot AI · Multi-tool resolution agent
-            </span>
-        </footer>
+                </section>
+            </main>
+        </div>
     </div>
 
     <script
-        src="/static/app.js?v=20260829-board2-final-1"
+        src="/static/app.js?v=20260903-v3-customer-2"
     ></script>
 </body>
 </html>

@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+    <meta
+        name="theme-color"
+        content="#f5f7fb"
+    >
+    <meta
+        name="description"
+        content="SupportPilot AI V3 human review queue and agent inspector"
+    >
+
+    <title>SupportPilot Operations</title>
+
+    <link
+        rel="stylesheet"
+        href="/static/operations.css?v=20260904-v3-operations-polish-1"
+    >
+</head>
+
+<body>
+    <div class="operations-shell">
+        <header class="operations-topbar">
+            <a
+                class="operations-brand"
+                href="/operations"
+                aria-label="SupportPilot Operations home"
+            >
+                <span class="brand-mark" aria-hidden="true">
+                    SP
+                </span>
+
+                <span class="brand-copy">
+                    <strong>SupportPilot Operations</strong>
+                    <span>Human review workspace · V3</span>
+                </span>
+            </a>
+
+        </header>
+
+
+        <main class="operations-layout">
+            <aside class="queue-panel">
+                <section class="side-section operator-panel">
+                    <div class="side-title">
+                        Operator
+                    </div>
+
+                    <label
+                        class="operator-label"
+                        for="operator-name"
+                    >
+                        Review as
+                    </label>
+
+                    <input
+                        id="operator-name"
+                        class="operator-input"
+                        type="text"
+                        value="support-operator"
+                        autocomplete="off"
+                        spellcheck="false"
+                    >
+
+                    <div class="operator-actions">
+                        <span class="live-copy">
+                            <span class="live-dot"></span>
+                            Queue refreshes automatically
+                        </span>
+
+                        <button
+                            id="refresh-queue-button"
+                            class="secondary-button"
+                            type="button"
+                        >
+                            Refresh
+                        </button>
+                    </div>
+                </section>
+
+
+                <section class="side-section">
+                    <div class="queue-header">
+                        <div>
+                            <div class="side-title">
+                                Work queue
+                            </div>
+
+                            <h2>Human Review Queue</h2>
+                        </div>
+
+                        <span
+                            id="pending-count-badge"
+                            class="count-badge"
+                        >0 pending</span>
+                    </div>
+
+                    <div class="queue-stats">
+                        <div class="queue-stat">
+                            <span>Pending</span>
+                            <strong id="pending-count">0</strong>
+                        </div>
+
+                        <div class="queue-stat">
+                            <span>Active</span>
+                            <strong id="active-count">0</strong>
+                        </div>
+
+                        <div class="queue-stat">
+                            <span>History</span>
+                            <strong id="history-count">0</strong>
+                        </div>
+                    </div>
+
+                    <div
+                        class="queue-tabs"
+                        role="tablist"
+                        aria-label="Review queue filters"
+                    >
+                        <button
+                            class="queue-tab active"
+                            data-filter="pending"
+                            type="button"
+                        >Pending</button>
+
+                        <button
+                            class="queue-tab"
+                            data-filter="active"
+                            type="button"
+                        >Active</button>
+
+                        <button
+                            class="queue-tab"
+                            data-filter="history"
+                            type="button"
+                        >History</button>
+
+                        <button
+                            class="queue-tab"
+                            data-filter="all"
+                            type="button"
+                        >All</button>
+                    </div>
+
+                    <div class="queue-search-wrap">
+                        <input
+                            id="queue-search"
+                            type="search"
+                            placeholder="Search customer or issue..."
+                            autocomplete="off"
+                        >
+                    </div>
+
+                    <div
+                        id="queue-status"
+                        class="queue-status"
+                        aria-live="polite"
+                    >Loading review queue...</div>
+                </section>
+
+
+                <section class="queue-list-section">
+                    <div
+                        id="review-queue"
+                        class="review-queue"
+                    ></div>
+                </section>
+
+
+                <div class="sidebar-footer">
+                    SupportPilot AI · Human Review Operations
+                </div>
+            </aside>
+
+
+            <section class="case-workspace">
+                <div
+                    id="workspace-empty"
+                    class="workspace-empty"
+                >
+                    <div class="empty-icon">✓</div>
+
+                    <h2>Select a review case</h2>
+
+                    <p>
+                        Choose a case from the queue. You’ll see the customer
+                        request, verified evidence, recommended action and the
+                        human approval controls here.
+                    </p>
+                </div>
+
+
+                <div
+                    id="workspace-content"
+                    class="workspace-content"
+                    hidden
+                >
+                    <header class="case-header">
+                        <div class="case-header-copy">
+                            <span class="eyebrow">
+                                HUMAN REVIEW
+                            </span>
+
+                            <h2 id="case-title">
+                                Review support action
+                            </h2>
+
+                            <p id="case-subtitle"></p>
+                        </div>
+
+                        <div class="case-header-statuses">
+                            <span
+                                id="case-approval-status"
+                                class="status-pill status-pending"
+                            ></span>
+
+                            <span
+                                id="case-verification-status"
+                                class="status-pill status-neutral"
+                                hidden
+                            ></span>
+                        </div>
+                    </header>
+
+
+                    <div class="case-grid">
+                        <div class="case-main-column">
+                            <section class="ops-card customer-context-card">
+                                <div class="section-heading">
+                                    <span class="section-index">01</span>
+
+                                    <div>
+                                        <span class="eyebrow">CUSTOMER</span>
+                                        <h3>Request & case context</h3>
+                                    </div>
+                                </div>
+
+                                <div class="context-grid">
+                                    <div class="context-item">
+                                        <span>Customer</span>
+                                        <strong id="case-customer">—</strong>
+                                    </div>
+
+                                    <div class="context-item">
+                                        <span>Issue type</span>
+                                        <strong id="case-issue-type">—</strong>
+                                    </div>
+
+                                    <div class="context-item technical-context-item">
+                                        <span>Run</span>
+                                        <strong id="case-run-id">—</strong>
+                                    </div>
+
+                                    <div class="context-item technical-context-item">
+                                        <span>Conversation</span>
+                                        <strong id="case-conversation-id">—</strong>
+                                    </div>
+                                </div>
+
+                                <div class="field-block">
+                                    <span class="field-label">
+                                        Customer request
+                                    </span>
+
+                                    <div
+                                        id="customer-request"
+                                        class="customer-request"
+                                    ></div>
+                                </div>
+                            </section>
+
+
+                            <section class="ops-card">
+                                <div class="section-heading split-heading">
+                                    <div class="heading-left">
+                                        <span class="section-index">02</span>
+
+                                        <div>
+                                            <span class="eyebrow">
+                                                INVESTIGATION
+                                            </span>
+                                            <h3>Verified evidence</h3>
+                                        </div>
+                                    </div>
+
+                                    <span class="section-note">
+                                        Read-only system evidence
+                                    </span>
+                                </div>
+
+                                <div id="evidence-list"></div>
+                            </section>
+
+
+                            <section class="ops-card">
+                                <div class="section-heading">
+                                    <span class="section-index">03</span>
+
+                                    <div>
+                                        <span class="eyebrow">TURN OUTCOME</span>
+                                        <h3>What this AI turn resolved</h3>
+                                    </div>
+                                </div>
+
+                                <div id="resolution-panel"></div>
+                                <p class="turn-outcome-note">
+                                    This status belongs to the selected AI turn.
+                                    The overall customer case can still be waiting
+                                    on a controlled human-reviewed action.
+                                </p>
+                            </section>
+
+
+                            <section class="ops-card action-card">
+                                <div class="section-heading">
+                                    <span class="section-index">04</span>
+
+                                    <div>
+                                        <span class="eyebrow">
+                                            RECOMMENDATION
+                                        </span>
+                                        <h3>Controlled action</h3>
+                                    </div>
+                                </div>
+
+                                <div id="action-recommendation"></div>
+
+                                <div
+                                    id="approval-controls"
+                                    class="approval-controls"
+                                    hidden
+                                >
+                                    <div class="approval-warning">
+                                        Review the verified evidence above.
+                                        Nothing changes until you approve this
+                                        action.
+                                    </div>
+
+                                    <div class="approval-buttons">
+                                        <button
+                                            id="approve-action-button"
+                                            class="approve-button"
+                                            type="button"
+                                        >
+                                            Approve action
+                                        </button>
+
+                                        <button
+                                            id="reject-action-button"
+                                            class="reject-button"
+                                            type="button"
+                                        >
+                                            Reject
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div
+                                    id="decision-summary"
+                                    class="decision-summary"
+                                    hidden
+                                ></div>
+                            </section>
+
+
+                            <div class="outcome-grid">
+                                <section class="ops-card outcome-card">
+                                    <div class="section-heading">
+                                        <span class="section-index">05</span>
+
+                                        <div>
+                                            <span class="eyebrow">
+                                                EXECUTION
+                                            </span>
+                                            <h3>Approved action</h3>
+                                        </div>
+                                    </div>
+
+                                    <div id="execution-panel"></div>
+
+                                    <button
+                                        id="execute-action-button"
+                                        class="execute-button"
+                                        type="button"
+                                        hidden
+                                    >
+                                        Execute approved action
+                                    </button>
+                                </section>
+
+
+                                <section class="ops-card outcome-card">
+                                    <div class="section-heading">
+                                        <span class="section-index">06</span>
+
+                                        <div>
+                                            <span class="eyebrow">
+                                                VERIFICATION
+                                            </span>
+                                            <h3>Post-action result</h3>
+                                        </div>
+                                    </div>
+
+                                    <div id="verification-panel"></div>
+                                </section>
+                            </div>
+
+
+                            <section
+                                id="business-object-card"
+                                class="ops-card"
+                                hidden
+                            >
+                                <div class="section-heading">
+                                    <span class="section-index">07</span>
+
+                                    <div>
+                                        <span class="eyebrow">HANDOFF</span>
+                                        <h3 id="business-object-title">
+                                            Created record
+                                        </h3>
+                                    </div>
+                                </div>
+
+                                <div id="business-object-panel"></div>
+                            </section>
+
+
+                            <details class="ops-card engineering-details">
+                                <summary>
+                                    <span>Technical audit details</span>
+                                    <small>
+                                        Optional technical details
+                                    </small>
+                                </summary>
+
+                                <div id="audit-trace"></div>
+                            </details>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+
+        <footer class="operations-footer">
+            <span>
+                SupportPilot AI · Human Review Queue + Agent Inspector
+            </span>
+
+            <span>
+                AI recommends · Human approves · Backend executes · System verifies
+            </span>
+        </footer>
+    </div>
+
+    <dialog id="reject-dialog" class="decision-dialog">
+        <form id="reject-form" class="decision-dialog-card" method="dialog">
+            <div class="decision-dialog-heading">
+                <div>
+                    <span class="eyebrow">HUMAN DECISION</span>
+                    <h3>Why are you rejecting this action?</h3>
+                </div>
+
+                <button
+                    id="reject-dialog-close"
+                    class="dialog-close"
+                    type="button"
+                    aria-label="Close rejection dialog"
+                >×</button>
+            </div>
+
+            <p class="decision-dialog-copy">
+                Rejecting prevents this action from executing. If the issue is
+                still unresolved, SupportPilot can prepare a separate specialist
+                support-ticket proposal that requires its own approval.
+            </p>
+
+            <label class="dialog-field">
+                <span>Reason</span>
+                <select id="reject-reason-select" required>
+                    <option value="">Choose a reason</option>
+                    <option value="Evidence is insufficient">Evidence is insufficient</option>
+                    <option value="Action may be unsafe">Action may be unsafe</option>
+                    <option value="Specialist investigation required">Specialist investigation required</option>
+                    <option value="Other">Other</option>
+                </select>
+            </label>
+
+            <label class="dialog-field">
+                <span>Additional note <small>(optional unless Other)</small></span>
+                <textarea
+                    id="reject-reason-note"
+                    rows="3"
+                    maxlength="700"
+                    placeholder="Add a short operator note..."
+                ></textarea>
+            </label>
+
+            <div id="reject-dialog-error" class="dialog-error" hidden></div>
+
+            <div class="decision-dialog-actions">
+                <button id="reject-dialog-cancel" class="secondary-button" type="button">
+                    Cancel
+                </button>
+                <button id="confirm-reject-button" class="reject-confirm-button" type="submit">
+                    Reject action
+                </button>
+            </div>
+        </form>
+    </dialog>
+
+
+    <script
+        src="/static/operations.js?v=20260904-v3-operations-polish-1"
+    ></script>
+</body>
+</html>

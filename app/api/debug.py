@@ -7,8 +7,12 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy import select
 
 from app.db.models import (
+    ActionExecution,
+    ActionProposal,
     AgentRun,
     Conversation,
+    RefundReview,
+    SupportTicket,
     ToolExecution,
 )
 from app.db.schema import ensure_schema
@@ -49,6 +53,47 @@ class ToolExecutionInspectorResponse(
     created_at: datetime
 
 
+class ActionExecutionInspectorResponse(
+    BaseModel
+):
+    model_config = ConfigDict(
+        extra="forbid"
+    )
+
+    execution_id: str
+    execution_status: str
+    verification_status: str
+    before_state: dict[str, Any] | None = None
+    result: dict[str, Any] | None = None
+    after_state: dict[str, Any] | None = None
+    verification_result: dict[str, Any] | None = None
+    error: str | None = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    verified_at: datetime | None = None
+
+
+class ActionProposalInspectorResponse(
+    BaseModel
+):
+    model_config = ConfigDict(
+        extra="forbid"
+    )
+
+    proposal_id: str
+    action_name: str
+    arguments: dict[str, Any]
+    reason: str
+    issue_type: str
+    approval_required: bool
+    approval_status: str
+    proposed_at: datetime
+    decided_at: datetime | None = None
+    decided_by: str | None = None
+    execution: ActionExecutionInspectorResponse | None = None
+    business_object: dict[str, Any] | None = None
+
+
 class AgentRunInspectorResponse(
     BaseModel
 ):
@@ -72,6 +117,9 @@ class AgentRunInspectorResponse(
     trace: list[dict[str, Any]]
     tool_executions: list[
         ToolExecutionInspectorResponse
+    ]
+    action_proposals: list[
+        ActionProposalInspectorResponse
     ]
 
 
@@ -222,6 +270,133 @@ def _tool_response(
     )
 
 
+def _action_execution_response(
+    execution: ActionExecution,
+) -> ActionExecutionInspectorResponse:
+    return ActionExecutionInspectorResponse(
+        execution_id=execution.execution_id,
+        execution_status=execution.execution_status,
+        verification_status=execution.verification_status,
+        before_state=_mask_debug_payload(
+            _safe_json_load(
+                execution.before_state_json,
+                None,
+            )
+        ),
+        result=_mask_debug_payload(
+            _safe_json_load(
+                execution.result_json,
+                None,
+            )
+        ),
+        after_state=_mask_debug_payload(
+            _safe_json_load(
+                execution.after_state_json,
+                None,
+            )
+        ),
+        verification_result=_mask_debug_payload(
+            _safe_json_load(
+                execution.verification_result_json,
+                None,
+            )
+        ),
+        error=execution.error,
+        started_at=execution.started_at,
+        completed_at=execution.completed_at,
+        verified_at=execution.verified_at,
+    )
+
+
+def _business_object(
+    db,
+    proposal: ActionProposal,
+) -> dict[str, Any] | None:
+    ticket = db.scalar(
+        select(SupportTicket).where(
+            SupportTicket.proposal_id
+            == proposal.proposal_id
+        )
+    )
+
+    if ticket is not None:
+        return {
+            "type": "support_ticket",
+            "ticket_number": ticket.ticket_number,
+            "priority": ticket.priority,
+            "status": ticket.status,
+            "issue_type": ticket.issue_type,
+            "summary": ticket.summary,
+            "evidence": _safe_json_load(
+                ticket.evidence_json,
+                [],
+            ),
+            "created_at": ticket.created_at.isoformat(),
+        }
+
+    review = db.scalar(
+        select(RefundReview).where(
+            RefundReview.proposal_id
+            == proposal.proposal_id
+        )
+    )
+
+    if review is not None:
+        return {
+            "type": "refund_review",
+            "review_number": review.review_number,
+            "payment_id": review.payment_id,
+            "status": review.status,
+            "reason": review.reason,
+            "created_at": review.created_at.isoformat(),
+        }
+
+    return None
+
+
+def _action_proposal_response(
+    db,
+    proposal: ActionProposal,
+) -> ActionProposalInspectorResponse:
+    execution = db.scalar(
+        select(ActionExecution).where(
+            ActionExecution.proposal_id
+            == proposal.proposal_id
+        )
+    )
+
+    return ActionProposalInspectorResponse(
+        proposal_id=proposal.proposal_id,
+        action_name=proposal.action_name,
+        arguments=_mask_debug_payload(
+            _safe_json_load(
+                proposal.arguments_json,
+                {},
+            )
+        ),
+        reason=proposal.reason,
+        issue_type=proposal.issue_type,
+        approval_required=proposal.approval_required,
+        approval_status=proposal.approval_status,
+        proposed_at=proposal.proposed_at,
+        decided_at=proposal.decided_at,
+        decided_by=proposal.decided_by,
+        execution=(
+            _action_execution_response(
+                execution
+            )
+            if execution is not None
+            else None
+        ),
+        business_object=_mask_debug_payload(
+            _business_object(
+                db,
+                proposal,
+            )
+        ),
+    )
+
+
 @router.get(
     "/runs/{run_id}",
     response_model=AgentRunInspectorResponse,
@@ -273,6 +448,22 @@ def get_agent_run(
                 .order_by(
                     ToolExecution.created_at,
                     ToolExecution.execution_id,
+                )
+            ).all()
+        )
+
+        action_proposals = list(
+            db.scalars(
+                select(
+                    ActionProposal
+                )
+                .where(
+                    ActionProposal.run_id
+                    == run_id
+                )
+                .order_by(
+                    ActionProposal.proposed_at,
+                    ActionProposal.proposal_id,
                 )
             ).all()
         )
@@ -334,6 +525,13 @@ def get_agent_run(
                     execution
                 )
                 for execution in executions
+            ],
+            action_proposals=[
+                _action_proposal_response(
+                    db,
+                    proposal,
+                )
+                for proposal in action_proposals
             ],
         )
 

@@ -1,12 +1,18 @@
 from datetime import datetime
+from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import case, select
 
+from app.actions.schemas import AgentActionProposalResponse
 from app.agent.orchestrator import ConversationCustomerMismatchError, run_agent
 from app.agent.schemas import ResolutionDecision
 from app.db.models import Conversation, Message
+from app.services.customer_case import (
+    build_customer_case_snapshot,
+    latest_action_context,
+)
 from app.db.schema import ensure_schema
 from app.db.session import SessionLocal
 
@@ -30,6 +36,7 @@ class ChatResponse(BaseModel):
     run_id: str
     intent: str
     resolution: ResolutionDecision | None = None
+    action_proposal: AgentActionProposalResponse | None = None
     trace: list[dict]
 
 
@@ -52,6 +59,39 @@ class ConversationHistoryResponse(BaseModel):
     messages: list[ConversationMessageResponse]
 
 
+CustomerCaseStatus = Literal[
+    "NO_ACTIVE_CASE",
+    "UNDER_REVIEW",
+    "NEEDS_INFORMATION",
+    "NEEDS_SUPPORT",
+    "RESOLVED",
+    "CASE_OPEN",
+    "REFUND_REVIEW_OPEN",
+]
+
+CustomerCaseType = Literal[
+    "SUBSCRIPTION_UPDATE",
+    "SUPPORT_CASE",
+    "REFUND_REVIEW",
+    "GENERAL_REVIEW",
+]
+
+
+class CustomerCaseStatusResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    conversation_id: str
+    customer_id: str | None
+    case_status: CustomerCaseStatus
+    case_type: CustomerCaseType | None = None
+    title: str
+    message: str
+    current_plan: str | None = None
+    reference: str | None = None
+    customer_message: str | None = None
+    updated_at: datetime | None = None
+
+
 @router.post("/chat", response_model=ChatResponse)
 def chat(payload: ChatRequest) -> ChatResponse:
     try:
@@ -68,6 +108,69 @@ def chat(payload: ChatRequest) -> ChatResponse:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
     return ChatResponse(**result)
+
+
+@router.get(
+    "/conversations/{conversation_id}/case-status",
+    response_model=CustomerCaseStatusResponse,
+)
+def get_customer_case_status(
+    conversation_id: str,
+    customer_id: str | None = Query(default=None),
+) -> CustomerCaseStatusResponse:
+    """
+    Return the latest customer-safe case state for one conversation.
+
+    This endpoint intentionally hides internal proposal IDs, action names,
+    approval metadata, execution payloads, and operator information.
+    """
+
+    ensure_schema()
+
+    with SessionLocal() as db:
+        conversation = db.get(
+            Conversation,
+            conversation_id,
+        )
+
+        if conversation is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Conversation not found.",
+            )
+
+        if (
+            customer_id
+            and conversation.customer_id
+            and customer_id
+                != conversation.customer_id
+        ):
+            raise HTTPException(
+                status_code=403,
+                detail=(
+                    "Customer does not match this conversation."
+                ),
+            )
+
+        proposal, execution = (
+            latest_action_context(
+                db,
+                conversation_id,
+            )
+        )
+
+        snapshot = (
+            build_customer_case_snapshot(
+                db,
+                conversation,
+                proposal,
+                execution,
+            )
+        )
+
+        return CustomerCaseStatusResponse(
+            **snapshot
+        )
 
 
 @router.get(

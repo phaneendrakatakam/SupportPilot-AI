@@ -20,8 +20,12 @@ from app.agent.schemas import (
     ServiceStatusInput,
     SubscriptionLookupInput,
 )
+from app.actions.recommendations import derive_action_recommendation
+from app.actions.service import create_action_proposal
 from app.config import settings
 from app.db.models import (
+    ActionExecution,
+    ActionProposal,
     AgentRun,
     Conversation,
     Customer,
@@ -37,8 +41,9 @@ from app.tools.service_status import get_service_status
 from app.tools.subscription import get_subscription
 
 
-PROMPT_VERSION = "v2-multi-tool-2"
-CONVERSATION_CONTEXT_VERSION = "v2-recent-context-1"
+PROMPT_VERSION = "v3-hitl-context-1"
+CONVERSATION_CONTEXT_VERSION = "v3-action-context-1"
+ACTION_RECOMMENDATION_VERSION = "v3-controlled-actions-3"
 RECENT_CONTEXT_MESSAGE_LIMIT = 8
 
 
@@ -141,6 +146,23 @@ Recent-conversation rules:
 35. If the recent conversation still does not make the follow-up clear enough
     to investigate safely, ask a focused clarification question instead of
     guessing.
+
+Human-in-the-loop workflow rules:
+36. The current turn may include persisted controlled-workflow context from the
+    SAME conversation. Treat that workflow state as authoritative application
+    state for whether a support action is waiting for approval, approved,
+    executed, verified, rejected, or failed.
+37. A pending action proposal is not an executed action. Never say the account
+    changed, a support ticket exists, or a refund review was submitted until the
+    controlled action has actually executed and the result is verified.
+38. If a refund-review request is already waiting for human approval, do not tell
+    the customer to start another refund request or contact billing merely to
+    initiate the same review. Explain that the existing request is waiting for
+    human approval and that no refund has been issued automatically.
+39. If a controlled action has been approved but not executed, explain that it is
+    approved and waiting for the controlled execution step. Do not claim success.
+40. A refund-review workflow can submit a review request only. It never issues or
+    guarantees a refund.
 """
 
 
@@ -507,10 +529,287 @@ def _history_message_to_content(
     )
 
 
+def _load_action_workflow_context(
+    db: Session,
+    conversation_id: str,
+    customer_id: str | None,
+) -> dict[str, Any] | None:
+    """
+    Load the latest non-rejected controlled workflow for this conversation.
+
+    This context is used only to keep follow-up responses aligned with the
+    persisted human-in-the-loop state. It never grants approval or executes.
+    """
+
+    if customer_id is None:
+        return None
+
+    proposal = db.scalar(
+        select(ActionProposal)
+        .where(
+            ActionProposal.conversation_id
+            == conversation_id,
+            ActionProposal.customer_id
+            == customer_id,
+            ActionProposal.approval_status.in_(
+                [
+                    "PENDING_APPROVAL",
+                    "APPROVED",
+                ]
+            ),
+        )
+        .order_by(
+            ActionProposal.proposed_at.desc(),
+            ActionProposal.proposal_id.desc(),
+        )
+        .limit(1)
+    )
+
+    if proposal is None:
+        return None
+
+    execution = db.scalar(
+        select(ActionExecution).where(
+            ActionExecution.proposal_id
+            == proposal.proposal_id
+        )
+    )
+
+    if (
+        execution is not None
+        and execution.verification_status
+        == "VERIFIED"
+    ):
+        stage = "VERIFIED"
+
+    elif (
+        execution is not None
+        and (
+            execution.execution_status
+            == "FAILED"
+            or execution.verification_status
+            == "FAILED"
+        )
+    ):
+        stage = "FAILED"
+
+    elif (
+        execution is not None
+        and execution.execution_status
+        == "EXECUTING"
+    ):
+        stage = "EXECUTING"
+
+    elif proposal.approval_status == "APPROVED":
+        stage = "APPROVED_WAITING_EXECUTION"
+
+    else:
+        stage = "PENDING_APPROVAL"
+
+    if proposal.action_name == "request_refund_review":
+        if stage == "PENDING_APPROVAL":
+            summary = (
+                "A refund-review request already exists and is waiting for "
+                "human approval. No refund has been processed or issued. "
+                "Do not ask the customer to start another refund request or "
+                "contact billing merely to initiate the same review."
+            )
+
+        elif stage == "APPROVED_WAITING_EXECUTION":
+            summary = (
+                "The refund-review request has human approval and is waiting "
+                "for controlled execution. No refund has been issued."
+            )
+
+        elif stage == "VERIFIED":
+            summary = (
+                "The refund-review request was submitted and verified. "
+                "This does not mean a refund was issued."
+            )
+
+        elif stage == "FAILED":
+            summary = (
+                "The refund-review workflow failed or could not be verified. "
+                "The case still needs human support."
+            )
+
+        else:
+            summary = (
+                "The refund-review workflow is currently executing. "
+                "No refund has been issued."
+            )
+
+    elif proposal.action_name == "retry_subscription_sync":
+        if stage == "PENDING_APPROVAL":
+            summary = (
+                "A subscription-correction action is waiting for human "
+                "approval. No account change has been made yet."
+            )
+
+        elif stage == "APPROVED_WAITING_EXECUTION":
+            summary = (
+                "The subscription-correction action is approved and waiting "
+                "for controlled execution. No success may be claimed yet."
+            )
+
+        elif stage == "VERIFIED":
+            summary = (
+                "The subscription correction executed and its final state was "
+                "verified."
+            )
+
+        elif stage == "FAILED":
+            summary = (
+                "The subscription correction failed or could not be verified. "
+                "The case still needs human support."
+            )
+
+        else:
+            summary = (
+                "The approved subscription correction is currently executing."
+            )
+
+    else:
+        if stage == "PENDING_APPROVAL":
+            summary = (
+                "Support-ticket creation is waiting for human approval. "
+                "No ticket has been created yet."
+            )
+
+        elif stage == "APPROVED_WAITING_EXECUTION":
+            summary = (
+                "Support-ticket creation is approved and waiting for "
+                "controlled execution. No ticket exists yet."
+            )
+
+        elif stage == "VERIFIED":
+            summary = (
+                "The support ticket was created and the result was verified."
+            )
+
+        elif stage == "FAILED":
+            summary = (
+                "Support-ticket creation failed or could not be verified. "
+                "The case still needs human support."
+            )
+
+        else:
+            summary = (
+                "Approved support-ticket creation is currently executing."
+            )
+
+    return {
+        "action_name":
+            proposal.action_name,
+        "stage":
+            stage,
+        "summary":
+            summary,
+    }
+
+
+def _is_refund_workflow_follow_up(
+    message: str,
+) -> bool:
+    normalized = (
+        message
+        .strip()
+        .lower()
+    )
+
+    if "refund" not in normalized:
+        return False
+
+    workflow_terms = (
+        "what happens",
+        "what happen",
+        "next",
+        "processed",
+        "processing",
+        "status",
+        "already",
+        "review",
+        "approve",
+        "approval",
+        "when",
+        "where",
+    )
+
+    return any(
+        term in normalized
+        for term in workflow_terms
+    )
+
+
+def _guard_customer_response_for_action_workflow(
+    model_response: str,
+    customer_message: str,
+    workflow_context: dict[str, Any] | None,
+) -> str:
+    """
+    Deterministic backstop for workflow-status follow-ups.
+
+    The Gemini prompt gets the same context, but this guard prevents a later
+    conversational turn from contradicting a persisted refund-review state.
+    """
+
+    if (
+        workflow_context is None
+        or workflow_context.get("action_name")
+        != "request_refund_review"
+        or not _is_refund_workflow_follow_up(
+            customer_message
+        )
+    ):
+        return model_response
+
+    stage = workflow_context.get(
+        "stage"
+    )
+
+    if stage == "PENDING_APPROVAL":
+        return (
+            "Your refund has not been processed. A refund review request is "
+            "already waiting for human approval. If it is approved, "
+            "SupportPilot will submit the refund-review request for human "
+            "assessment. No refund will be issued automatically."
+        )
+
+    if stage == "APPROVED_WAITING_EXECUTION":
+        return (
+            "Your refund has not been processed. The refund review request "
+            "has been approved and is waiting for the controlled submission "
+            "step. No refund will be issued automatically."
+        )
+
+    if stage == "EXECUTING":
+        return (
+            "Your refund has not been processed. The approved refund-review "
+            "request is currently being submitted. No refund will be issued "
+            "automatically."
+        )
+
+    if stage == "VERIFIED":
+        return (
+            "Your refund review request has been submitted for human review. "
+            "That means the review is open; it does not mean a refund has "
+            "already been issued."
+        )
+
+    if stage == "FAILED":
+        return (
+            "The refund-review workflow could not be completed safely, so "
+            "your case still needs human support. No refund has been issued."
+        )
+
+    return model_response
+
+
 def _build_current_user_context(
     message: str,
     effective_customer_id: str | None,
     conversation: Conversation,
+    action_workflow_context: dict[str, Any] | None = None,
 ) -> str:
     """
     Add small pieces of persisted V2 conversation state to the current turn.
@@ -534,12 +833,119 @@ def _build_current_user_context(
         or "NOT_SET"
     )
 
+    workflow_text = (
+        action_workflow_context.get(
+            "summary"
+        )
+        if action_workflow_context
+        else "NO_ACTIVE_CONTROLLED_WORKFLOW"
+    )
+
+    workflow_stage = (
+        action_workflow_context.get(
+            "stage"
+        )
+        if action_workflow_context
+        else "NONE"
+    )
+
     return (
         f"Active customer_id: {active_customer}\n"
         f"Conversation issue: {current_issue}\n"
-        f"Previous resolution status: {previous_resolution}\n"
+        f"Previous turn resolution status: {previous_resolution}\n"
+        f"Controlled workflow stage: {workflow_stage}\n"
+        f"Controlled workflow context: {workflow_text}\n"
         f"Customer message: {message}"
     )
+
+
+def _serialize_action_proposal(
+    proposal: ActionProposal,
+) -> dict[str, Any]:
+    """
+    Convert a persisted V3 action proposal into API/trace-safe data.
+    """
+
+    return {
+        "proposal_id": proposal.proposal_id,
+        "action_name": proposal.action_name,
+        "arguments": json.loads(
+            proposal.arguments_json
+        ),
+        "reason": proposal.reason,
+        "issue_type": proposal.issue_type,
+        "approval_required": proposal.approval_required,
+        "approval_status": proposal.approval_status,
+        "proposed_at": (
+            proposal.proposed_at.isoformat()
+            if proposal.proposed_at
+            else None
+        ),
+    }
+
+
+def _derive_and_persist_action_proposal(
+    db: Session,
+    *,
+    conversation: Conversation,
+    agent_run: AgentRun,
+    customer_id: str | None,
+    customer_message: str,
+    resolution,
+    trace: list[dict[str, Any]],
+    step_number: int,
+) -> dict[str, Any] | None:
+    """
+    Convert a completed V2 investigation into at most one V3 action proposal.
+
+    The action layer recommends and persists only. It never approves or executes
+    the action from inside the Gemini orchestration loop.
+    """
+
+    if (
+        resolution is None
+        or customer_id is None
+        or conversation.customer_id != customer_id
+    ):
+        return None
+
+    recommendation = derive_action_recommendation(
+        resolution=resolution,
+        trace=trace,
+        customer_message=customer_message,
+    )
+
+    if recommendation is None:
+        return None
+
+    proposal = create_action_proposal(
+        db,
+        conversation_id=conversation.conversation_id,
+        run_id=agent_run.run_id,
+        customer_id=customer_id,
+        recommendation=recommendation,
+    )
+
+    proposal_data = _serialize_action_proposal(
+        proposal
+    )
+
+    trace.append(
+        {
+            "step": step_number,
+            "type": "action_proposal",
+            "recommendation_version": (
+                ACTION_RECOMMENDATION_VERSION
+            ),
+            "proposal_reused": (
+                proposal.run_id
+                != agent_run.run_id
+            ),
+            **proposal_data,
+        }
+    )
+
+    return proposal_data
 
 
 def _build_conversation_contents(
@@ -654,6 +1060,18 @@ def run_agent(
             )
         )
 
+        action_workflow_context = (
+            _load_action_workflow_context(
+                db=db,
+                conversation_id=(
+                    persisted_conversation_id
+                ),
+                customer_id=(
+                    effective_customer_id
+                ),
+            )
+        )
+
         current_user_context = (
             _build_current_user_context(
                 message=message,
@@ -661,6 +1079,9 @@ def run_agent(
                     effective_customer_id
                 ),
                 conversation=conversation,
+                action_workflow_context=(
+                    action_workflow_context
+                ),
             )
         )
 
@@ -698,6 +1119,20 @@ def run_agent(
                     ),
                     "previous_resolution_status": (
                         conversation.resolution_status
+                    ),
+                    "active_controlled_workflow": (
+                        {
+                            "stage":
+                                action_workflow_context.get(
+                                    "stage"
+                                ),
+                            "action_name":
+                                action_workflow_context.get(
+                                    "action_name"
+                                ),
+                        }
+                        if action_workflow_context
+                        else None
                     ),
                 }
             )
@@ -805,6 +1240,21 @@ def run_agent(
                             resolution.issue_type
                         )
 
+                    action_proposal_data = (
+                        _derive_and_persist_action_proposal(
+                            db=db,
+                            conversation=conversation,
+                            agent_run=agent_run,
+                            customer_id=(
+                                effective_customer_id
+                            ),
+                            customer_message=message,
+                            resolution=resolution,
+                            trace=trace,
+                            step_number=step_number,
+                        )
+                    )
+
                     model_final_text = final_text
 
                     final_text = (
@@ -814,6 +1264,16 @@ def run_agent(
                             ),
                             resolution=resolution,
                             customer_message=message,
+                        )
+                    )
+
+                    final_text = (
+                        _guard_customer_response_for_action_workflow(
+                            model_response=final_text,
+                            customer_message=message,
+                            workflow_context=(
+                                action_workflow_context
+                            ),
                         )
                     )
 
@@ -894,6 +1354,9 @@ def run_agent(
                         "run_id": run_id,
                         "intent": detected_intent,
                         "resolution": resolution_data,
+                        "action_proposal": (
+                            action_proposal_data
+                        ),
                         "trace": trace,
                     }
 
@@ -1169,6 +1632,7 @@ def run_agent(
                 "resolution": (
                     resolution_data
                 ),
+                "action_proposal": None,
                 "trace": trace,
             }
 

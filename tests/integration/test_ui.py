@@ -17,83 +17,67 @@ def test_customer_ui_is_available() -> None:
     )
 
     assert (
-        "How can I help today?"
+        "How can we help?"
+        in response.text
+    )
+
+    assert (
+        'id="customer-id"'
+        in response.text
+    )
+
+    assert (
+        'id="chat-form"'
         in response.text
     )
 
 
-def test_customer_ui_removes_large_explainer_sections() -> None:
-    text = client.get("/").text
-
-    assert (
-        "SUPPORT CAPABILITIES"
-        not in text
-    )
-
-    assert (
-        "One assistant, multiple support systems."
-        not in text
-    )
-
-    assert (
-        "EVIDENCE FIRST"
-        not in text
-    )
-
-    assert (
-        "Built to avoid confident guesses."
-        not in text
-    )
-
-
-def test_customer_ui_keeps_compact_trust_message_and_resolution() -> None:
-    text = client.get("/").text
-
-    assert (
-        'id="resolution-banner"'
-        in text
-    )
-
-    assert (
-        "won’t guess when evidence is unclear"
-        in text
-    )
-
-    assert (
-        'id="session-state-label"'
-        in text
-    )
-
-
-def test_debug_ui_is_separate_and_agent_first() -> None:
-    response = client.get(
-        "/debug"
-    )
+def test_customer_ui_keeps_customer_safe_case_status_and_trust() -> None:
+    response = client.get("/")
 
     assert response.status_code == 200
 
+    text = response.text
+
     assert (
-        "Agent Inspector"
-        in response.text
+        'id="status-card"'
+        in text
     )
 
     assert (
-        "Tool execution sequence"
-        in response.text
+        "Current case"
+        in text
     )
 
     assert (
-        'id="run-id-input"'
-        in response.text
+        "Verified support answers"
+        in text
     )
 
     assert (
-        "no private model chain-of-thought"
-        in response.text.lower()
+        "SupportPilot AI · V3 customer experience"
+        in text
+    )
+
+    # Human approval and execution controls belong on /operations,
+    # never on the customer-facing page.
+    assert (
+        "Approve action"
+        not in text
+    )
+
+    assert (
+        "Execute approved action"
+        not in text
+    )
+
+    assert (
+        "PENDING_APPROVAL"
+        not in text
     )
 
 
-def test_customer_stylesheet_has_board2_layout() -> None:
+def test_customer_stylesheet_has_v3_customer_layout() -> None:
     response = client.get(
         "/static/styles.css"
     )
@@ -103,69 +87,74 @@ def test_customer_stylesheet_has_board2_layout() -> None:
         == 200
     )
 
+    text = response.text
+
     assert (
-        "inbox-rail"
-        in response.text
+        ".sidebar"
+        in text
     )
 
     assert (
-        "conversation-panel"
-        in response.text
+        ".main"
+        in text
     )
 
     assert (
-        "trust-line"
-        in response.text
+        ".status-card"
+        in text
+    )
+
+    assert (
+        ".case-card"
+        in text
+    )
+
+    assert (
+        ".customer-summary"
+        in text
     )
 
 
-def test_customer_frontend_has_safe_markdown() -> None:
-    text = client.get(
+def test_customer_frontend_javascript_is_available() -> None:
+    response = client.get(
         "/static/app.js"
-    ).text
+    )
 
     assert (
-        "renderSafeMarkdown"
+        response.status_code
+        == 200
+    )
+
+    text = response.text
+
+    assert (
+        "/api/v1/support/chat"
+        in text
+    )
+
+    # The V3 customer UI must use the customer-safe conversation
+    # case-status endpoint rather than polling internal action APIs.
+    assert (
+        "/case-status"
         in text
     )
 
     assert (
-        "escapeHtml"
-        in text
-    )
-
-    assert (
-        "bubble.innerHTML"
-        in text
-    )
-
-    assert (
-        "copy-response"
-        in text
-    )
-
-
-def test_customer_frontend_has_restoration_without_dev_logic() -> None:
-    text = client.get(
-        "/static/app.js"
-    ).text
-
-    assert (
-        "restoreConversation"
-        in text
-    )
-
-    assert (
-        "supportpilot.activeConversationId"
-        in text
-    )
-
-    assert (
-        "/api/v1/support/conversations/"
-        in text
-    )
-
-    assert (
-        "setDeveloperView"
+        "/api/v1/actions/"
         not in text
+    )
+
+    assert (
+        "showRetryResolved"
+        in text
+    )
+
+    assert (
+        "showTicketCreated"
+        in text
+    )
+
+    assert (
+        "showRefundReviewCreated"
+        in text
     )

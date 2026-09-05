@@ -6,7 +6,16 @@ from sqlalchemy import delete, select
 
 import app.agent.orchestrator as orchestrator
 from app.agent.schemas import CustomerResult, PaymentResult, SubscriptionResult
-from app.db.models import AgentRun, Conversation, Message, ToolExecution
+from app.db.models import (
+    ActionExecution,
+    ActionProposal,
+    AgentRun,
+    Conversation,
+    Message,
+    RefundReview,
+    SupportTicket,
+    ToolExecution,
+)
 from app.db.session import SessionLocal
 
 
@@ -56,15 +65,59 @@ def cleanup(conversation_id):
                 )
             ).all()
         )
+
         if run_ids:
+            proposal_ids = list(
+                db.scalars(
+                    select(ActionProposal.proposal_id).where(
+                        ActionProposal.run_id.in_(run_ids)
+                    )
+                ).all()
+            )
+
+            if proposal_ids:
+                db.execute(
+                    delete(ActionExecution).where(
+                        ActionExecution.proposal_id.in_(proposal_ids)
+                    )
+                )
+                db.execute(
+                    delete(SupportTicket).where(
+                        SupportTicket.proposal_id.in_(proposal_ids)
+                    )
+                )
+                db.execute(
+                    delete(RefundReview).where(
+                        RefundReview.proposal_id.in_(proposal_ids)
+                    )
+                )
+                db.execute(
+                    delete(ActionProposal).where(
+                        ActionProposal.proposal_id.in_(proposal_ids)
+                    )
+                )
+
             db.execute(
                 delete(ToolExecution).where(
                     ToolExecution.run_id.in_(run_ids)
                 )
             )
-        db.execute(delete(Message).where(Message.conversation_id == conversation_id))
-        db.execute(delete(AgentRun).where(AgentRun.conversation_id == conversation_id))
-        db.execute(delete(Conversation).where(Conversation.conversation_id == conversation_id))
+
+        db.execute(
+            delete(Message).where(
+                Message.conversation_id == conversation_id
+            )
+        )
+        db.execute(
+            delete(AgentRun).where(
+                AgentRun.conversation_id == conversation_id
+            )
+        )
+        db.execute(
+            delete(Conversation).where(
+                Conversation.conversation_id == conversation_id
+            )
+        )
         db.commit()
 
 
