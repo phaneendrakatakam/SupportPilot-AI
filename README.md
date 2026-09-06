@@ -747,9 +747,9 @@ Example:
 APP_NAME=SupportPilot AI
 APP_ENV=development
 
-DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/clouddesk_support
+DATABASE_URL=postgresql+psycopg://postgres:your_password@localhost:5432/clouddesk_support
 
-GEMINI_API_KEY=
+GEMINI_API_KEY=your_gemini_api_key
 GEMINI_MODEL=gemini-3.5-flash-lite
 GEMINI_EMBEDDING_MODEL=gemini-embedding-2
 
