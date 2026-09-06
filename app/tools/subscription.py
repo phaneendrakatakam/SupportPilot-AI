@@ -1,6 +1,5 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-
 from app.agent.schemas import SubscriptionLookupInput, SubscriptionResult
 from app.db.models import Subscription
 
@@ -15,7 +14,6 @@ def get_subscription(db: Session, payload: SubscriptionLookupInput) -> Subscript
             customer_id=payload.customer_id,
             error="No subscription record was found for this customer.",
         )
-
     return SubscriptionResult(
         status="SUCCESS",
         subscription_id=subscription.subscription_id,

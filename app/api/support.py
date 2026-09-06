@@ -1,130 +1,230 @@
-from typing import Any
+from datetime import datetime
+from typing import Literal
 
-from fastapi import APIRouter, HTTPException
-from pydantic import (
-    BaseModel,
-    ConfigDict,
-    Field,
+from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy import case, select
+
+from app.actions.schemas import AgentActionProposalResponse
+from app.agent.orchestrator import ConversationCustomerMismatchError, run_agent
+from app.agent.schemas import ResolutionDecision
+from app.db.models import Conversation, Message
+from app.services.customer_case import (
+    build_customer_case_snapshot,
+    latest_action_context,
 )
+from app.db.schema import ensure_schema
+from app.db.session import SessionLocal
 
-from app.agent.orchestrator import run_agent
 
-
-router = APIRouter(
-    prefix="/api/v1/support",
-    tags=["support"],
-)
+router = APIRouter(prefix="/api/v1/support", tags=["support"])
 
 
 class ChatRequest(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid"
-    )
+    model_config = ConfigDict(extra="forbid")
 
-    message: str = Field(
-        min_length=1,
-        max_length=4000,
-    )
-
-    customer_id: str | None = None
-
-    conversation_id: str | None = None
+    message: str = Field(min_length=1, max_length=4000)
+    customer_id: str | None = Field(default=None, max_length=32)
+    conversation_id: str | None = Field(default=None, max_length=36)
 
 
 class ChatResponse(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid"
-    )
+    model_config = ConfigDict(extra="forbid")
 
     response: str
+    conversation_id: str
+    run_id: str
+    intent: str
+    resolution: ResolutionDecision | None = None
+    action_proposal: AgentActionProposalResponse | None = None
+    trace: list[dict]
 
-    customer_id: str | None = None
+
+class ConversationMessageResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    message_id: str
+    role: str
+    content: str
+    created_at: datetime
+
+
+class ConversationHistoryResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
 
     conversation_id: str
-
-    run_id: str
-
-    intent: str
-
-    trace: list[
-        dict[str, Any]
-    ]
+    customer_id: str | None
+    current_issue: str | None
+    resolution_status: str | None
+    messages: list[ConversationMessageResponse]
 
 
-@router.post(
-    "/chat",
-    response_model=ChatResponse,
-)
-def chat(
-    request: ChatRequest,
-) -> ChatResponse:
-    """
-    Send one customer message through the
-    SupportPilot V1 agent.
+CustomerCaseStatus = Literal[
+    "NO_ACTIVE_CASE",
+    "UNDER_REVIEW",
+    "NEEDS_INFORMATION",
+    "NEEDS_SUPPORT",
+    "RESOLVED",
+    "CASE_OPEN",
+    "REFUND_REVIEW_OPEN",
+]
 
-    The request and resulting agent execution
-    are persisted to PostgreSQL.
-    """
+CustomerCaseType = Literal[
+    "SUBSCRIPTION_UPDATE",
+    "SUPPORT_CASE",
+    "REFUND_REVIEW",
+    "GENERAL_REVIEW",
+]
 
+
+class CustomerCaseStatusResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    conversation_id: str
+    customer_id: str | None
+    case_status: CustomerCaseStatus
+    case_type: CustomerCaseType | None = None
+    title: str
+    message: str
+    current_plan: str | None = None
+    reference: str | None = None
+    customer_message: str | None = None
+    updated_at: datetime | None = None
+
+
+@router.post("/chat", response_model=ChatResponse)
+def chat(payload: ChatRequest) -> ChatResponse:
     try:
         result = run_agent(
-            message=request.message,
-            customer_id=request.customer_id,
-            conversation_id=(
-                request.conversation_id
-            ),
+            message=payload.message,
+            customer_id=payload.customer_id,
+            conversation_id=payload.conversation_id,
+        )
+    except ConversationCustomerMismatchError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    return ChatResponse(**result)
+
+
+@router.get(
+    "/conversations/{conversation_id}/case-status",
+    response_model=CustomerCaseStatusResponse,
+)
+def get_customer_case_status(
+    conversation_id: str,
+    customer_id: str | None = Query(default=None),
+) -> CustomerCaseStatusResponse:
+    """
+    Return the latest customer-safe case state for one conversation.
+
+    This endpoint intentionally hides internal proposal IDs, action names,
+    approval metadata, execution payloads, and operator information.
+    """
+
+    ensure_schema()
+
+    with SessionLocal() as db:
+        conversation = db.get(
+            Conversation,
+            conversation_id,
         )
 
-    except ValueError as exc:
-        message = str(exc)
-
-        if message.startswith(
-            "Conversation not found:"
-        ):
+        if conversation is None:
             raise HTTPException(
                 status_code=404,
-                detail=message,
-            ) from exc
+                detail="Conversation not found.",
+            )
 
-        raise HTTPException(
-            status_code=400,
-            detail=message,
-        ) from exc
-
-    except RuntimeError as exc:
-        if "GEMINI_API_KEY" in str(exc):
+        if (
+            customer_id
+            and conversation.customer_id
+            and customer_id
+                != conversation.customer_id
+        ):
             raise HTTPException(
-                status_code=503,
+                status_code=403,
                 detail=(
-                    "Gemini agent is "
-                    "not configured."
+                    "Customer does not match this conversation."
                 ),
-            ) from exc
+            )
 
-        raise HTTPException(
-            status_code=500,
-            detail=(
-                "The support agent did not "
-                "complete successfully."
-            ),
-        ) from exc
+        proposal, execution = (
+            latest_action_context(
+                db,
+                conversation_id,
+            )
+        )
 
-    except Exception as exc:
-        raise HTTPException(
-            status_code=500,
-            detail=(
-                "The support agent failed "
-                "to process the request."
-            ),
-        ) from exc
+        snapshot = (
+            build_customer_case_snapshot(
+                db,
+                conversation,
+                proposal,
+                execution,
+            )
+        )
 
-    return ChatResponse(
-        response=result["response"],
-        customer_id=request.customer_id,
-        conversation_id=(
-            result["conversation_id"]
-        ),
-        run_id=result["run_id"],
-        intent=result["intent"],
-        trace=result["trace"],
-    )
+        return CustomerCaseStatusResponse(
+            **snapshot
+        )
+
+
+@router.get(
+    "/conversations/{conversation_id}",
+    response_model=ConversationHistoryResponse,
+)
+def get_conversation_history(
+    conversation_id: str,
+    customer_id: str | None = Query(default=None),
+) -> ConversationHistoryResponse:
+    ensure_schema()
+
+    with SessionLocal() as db:
+        conversation = db.get(Conversation, conversation_id)
+
+        if conversation is None:
+            raise HTTPException(status_code=404, detail="Conversation not found.")
+
+        if (
+            customer_id
+            and conversation.customer_id
+            and customer_id != conversation.customer_id
+        ):
+            raise HTTPException(
+                status_code=403,
+                detail="Customer does not match this conversation.",
+            )
+
+        role_order = case(
+            (Message.role == "user", 0),
+            (Message.role == "assistant", 1),
+            else_=2,
+        )
+
+        messages = list(
+            db.scalars(
+                select(Message)
+                .where(Message.conversation_id == conversation_id)
+                .order_by(Message.created_at, role_order, Message.message_id)
+            ).all()
+        )
+
+        return ConversationHistoryResponse(
+            conversation_id=conversation.conversation_id,
+            customer_id=conversation.customer_id,
+            current_issue=conversation.current_issue,
+            resolution_status=conversation.resolution_status,
+            messages=[
+                ConversationMessageResponse(
+                    message_id=item.message_id,
+                    role=item.role,
+                    content=item.content,
+                    created_at=item.created_at,
+                )
+                for item in messages
+            ],
+        )

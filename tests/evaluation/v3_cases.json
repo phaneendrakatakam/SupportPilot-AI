@@ -1,0 +1,456 @@
+[
+  {
+    "id": "EVAL-V3-001",
+    "name": "paid_upgrade_failed_sync_recommends_retry",
+    "customer_message": "I paid for Pro, but my account still shows Basic. What happened?",
+    "trace": [
+      {
+        "type": "tool_call",
+        "tool": "get_subscription",
+        "result_status": "SUCCESS",
+        "result": {
+          "status": "SUCCESS",
+          "customer_id": "CUS-1007",
+          "plan": "BASIC",
+          "requested_plan": "PRO",
+          "subscription_status": "ACTIVE",
+          "last_sync_status": "FAILED"
+        }
+      },
+      {
+        "type": "tool_call",
+        "tool": "get_payment_status",
+        "result_status": "SUCCESS",
+        "result": {
+          "status": "SUCCESS",
+          "customer_id": "CUS-1007",
+          "payment_id": "PAY-3007",
+          "plan": "PRO",
+          "payment_status": "SUCCESS",
+          "amount": 29,
+          "currency": "USD"
+        }
+      }
+    ],
+    "expected_resolution_status": "ESCALATION_REQUIRED",
+    "expected_issue_type": "subscription_upgrade_failure",
+    "expected_action": "retry_subscription_sync",
+    "expected_action_customer_id": "CUS-1007",
+    "response_contains": [
+      "additional support review"
+    ],
+    "response_not_contains": [
+      "your account has been updated"
+    ]
+  },
+  {
+    "id": "EVAL-V3-002",
+    "name": "missing_payment_failed_upgrade_escalates_to_ticket",
+    "customer_message": "I upgraded to Pro but my account is still showing Basic. Can you fix this?",
+    "trace": [
+      {
+        "type": "tool_call",
+        "tool": "get_subscription",
+        "result_status": "SUCCESS",
+        "result": {
+          "status": "SUCCESS",
+          "customer_id": "CUS-1005",
+          "plan": "BASIC",
+          "requested_plan": "PRO",
+          "subscription_status": "ACTIVE",
+          "last_sync_status": "FAILED"
+        }
+      },
+      {
+        "type": "tool_call",
+        "tool": "get_payment_status",
+        "result_status": "NOT_FOUND",
+        "result": {
+          "status": "NOT_FOUND",
+          "customer_id": "CUS-1005",
+          "error": "No matching payment record was found."
+        }
+      }
+    ],
+    "expected_resolution_status": "UNRESOLVED",
+    "expected_issue_type": "payment_evidence_unavailable",
+    "expected_action": "create_support_ticket",
+    "expected_action_customer_id": "CUS-1005",
+    "response_contains": [
+      "couldn't verify the payment state"
+    ],
+    "response_not_contains": [
+      "payment failed",
+      "account has been updated"
+    ]
+  },
+  {
+    "id": "EVAL-V3-003",
+    "name": "explicit_refund_after_successful_payment_requests_review",
+    "customer_message": "I was charged for Pro and I want a refund.",
+    "trace": [
+      {
+        "type": "tool_call",
+        "tool": "get_payment_status",
+        "result_status": "SUCCESS",
+        "result": {
+          "status": "SUCCESS",
+          "customer_id": "CUS-1002",
+          "payment_id": "PAY-3002",
+          "plan": "PRO",
+          "payment_status": "SUCCESS",
+          "amount": 29,
+          "currency": "USD"
+        }
+      }
+    ],
+    "expected_resolution_status": "RESOLVED",
+    "expected_issue_type": "payment_status_verified",
+    "expected_action": "request_refund_review",
+    "expected_action_customer_id": "CUS-1002"
+  },
+  {
+    "id": "EVAL-V3-004",
+    "name": "pending_payment_does_not_trigger_refund_or_retry",
+    "customer_message": "My payment is pending. Can you refund it?",
+    "trace": [
+      {
+        "type": "tool_call",
+        "tool": "get_payment_status",
+        "result_status": "SUCCESS",
+        "result": {
+          "status": "SUCCESS",
+          "customer_id": "CUS-1004",
+          "payment_id": "PAY-3004",
+          "plan": "PRO",
+          "payment_status": "PENDING",
+          "amount": 29,
+          "currency": "USD"
+        }
+      }
+    ],
+    "expected_resolution_status": "UNRESOLVED",
+    "expected_issue_type": "payment_pending",
+    "expected_action": null,
+    "response_contains": [
+      "payment is still pending"
+    ],
+    "response_not_contains": [
+      "refund review",
+      "refund has been processed"
+    ]
+  },
+  {
+    "id": "EVAL-V3-005",
+    "name": "failed_payment_explains_upgrade_without_action",
+    "customer_message": "Why didn't my Pro upgrade happen?",
+    "trace": [
+      {
+        "type": "tool_call",
+        "tool": "get_subscription",
+        "result_status": "SUCCESS",
+        "result": {
+          "status": "SUCCESS",
+          "customer_id": "CUS-1010",
+          "plan": "BASIC",
+          "requested_plan": "PRO",
+          "subscription_status": "ACTIVE",
+          "last_sync_status": "FAILED"
+        }
+      },
+      {
+        "type": "tool_call",
+        "tool": "get_payment_status",
+        "result_status": "SUCCESS",
+        "result": {
+          "status": "SUCCESS",
+          "customer_id": "CUS-1010",
+          "payment_id": "PAY-3010",
+          "plan": "PRO",
+          "payment_status": "FAILED"
+        }
+      }
+    ],
+    "expected_resolution_status": "RESOLVED",
+    "expected_issue_type": "payment_failure",
+    "expected_action": null
+  },
+  {
+    "id": "EVAL-V3-006",
+    "name": "already_refunded_payment_needs_no_new_action",
+    "customer_message": "Has my payment already been refunded?",
+    "trace": [
+      {
+        "type": "tool_call",
+        "tool": "get_payment_status",
+        "result_status": "SUCCESS",
+        "result": {
+          "status": "SUCCESS",
+          "customer_id": "CUS-1011",
+          "payment_id": "PAY-3011",
+          "plan": "PRO",
+          "payment_status": "REFUNDED"
+        }
+      }
+    ],
+    "expected_resolution_status": "RESOLVED",
+    "expected_issue_type": "payment_status_verified",
+    "expected_action": null
+  },
+  {
+    "id": "EVAL-V3-007",
+    "name": "cross_customer_conflict_requires_human_ticket",
+    "customer_message": "My paid upgrade is not showing.",
+    "trace": [
+      {
+        "type": "tool_call",
+        "tool": "get_subscription",
+        "result_status": "SUCCESS",
+        "result": {
+          "status": "SUCCESS",
+          "customer_id": "CUS-1007",
+          "plan": "BASIC",
+          "requested_plan": "PRO",
+          "subscription_status": "ACTIVE",
+          "last_sync_status": "FAILED"
+        }
+      },
+      {
+        "type": "tool_call",
+        "tool": "get_payment_status",
+        "result_status": "SUCCESS",
+        "result": {
+          "status": "SUCCESS",
+          "customer_id": "CUS-1002",
+          "payment_id": "PAY-X",
+          "plan": "PRO",
+          "payment_status": "SUCCESS"
+        }
+      }
+    ],
+    "expected_resolution_status": "ESCALATION_REQUIRED",
+    "expected_issue_type": "cross_system_customer_conflict",
+    "expected_action": "create_support_ticket",
+    "expected_action_customer_id": "CUS-1007",
+    "response_contains": [
+      "conflicting customer information"
+    ],
+    "response_not_contains": [
+      "upgrade completed"
+    ]
+  },
+  {
+    "id": "EVAL-V3-008",
+    "name": "cross_plan_conflict_requires_human_ticket",
+    "customer_message": "I paid but my plan looks wrong.",
+    "trace": [
+      {
+        "type": "tool_call",
+        "tool": "get_subscription",
+        "result_status": "SUCCESS",
+        "result": {
+          "status": "SUCCESS",
+          "customer_id": "CUS-1012",
+          "plan": "BASIC",
+          "requested_plan": "PRO",
+          "subscription_status": "ACTIVE",
+          "last_sync_status": "FAILED"
+        }
+      },
+      {
+        "type": "tool_call",
+        "tool": "get_payment_status",
+        "result_status": "SUCCESS",
+        "result": {
+          "status": "SUCCESS",
+          "customer_id": "CUS-1012",
+          "payment_id": "PAY-3012",
+          "plan": "BASIC",
+          "payment_status": "SUCCESS"
+        }
+      }
+    ],
+    "expected_resolution_status": "ESCALATION_REQUIRED",
+    "expected_issue_type": "cross_system_plan_conflict",
+    "expected_action": "create_support_ticket",
+    "expected_action_customer_id": "CUS-1012",
+    "response_contains": [
+      "conflicting plan information"
+    ],
+    "response_not_contains": [
+      "upgrade completed"
+    ]
+  },
+  {
+    "id": "EVAL-V3-009",
+    "name": "active_service_incident_resolves_without_action",
+    "customer_message": "Is CloudDesk down in EU?",
+    "trace": [
+      {
+        "type": "tool_call",
+        "tool": "get_service_status",
+        "result_status": "SUCCESS",
+        "result": {
+          "status": "SUCCESS",
+          "service": "core",
+          "region": "EU",
+          "active_incidents": [
+            {
+              "incident_id": "INC-2001",
+              "severity": "SEV2",
+              "status": "ACTIVE"
+            }
+          ]
+        }
+      }
+    ],
+    "expected_resolution_status": "RESOLVED",
+    "expected_issue_type": "service_incident_confirmed",
+    "expected_action": null
+  },
+  {
+    "id": "EVAL-V3-010",
+    "name": "invalid_customer_requests_information_without_action",
+    "customer_message": "Check my subscription.",
+    "trace": [
+      {
+        "type": "tool_call",
+        "tool": "get_customer",
+        "result_status": "NOT_FOUND",
+        "result": {
+          "status": "NOT_FOUND",
+          "customer_id": "CUS-DOES-NOT-EXIST"
+        }
+      }
+    ],
+    "expected_resolution_status": "NEEDS_INFORMATION",
+    "expected_issue_type": "customer_identification",
+    "expected_action": null,
+    "response_contains": [
+      "valid customer id"
+    ],
+    "response_not_contains": [
+      "ticket",
+      "updated"
+    ]
+  },
+  {
+    "id": "EVAL-V3-011",
+    "name": "tool_failure_never_becomes_business_fact",
+    "customer_message": "Was my payment successful?",
+    "trace": [
+      {
+        "type": "tool_call",
+        "tool": "get_payment_status",
+        "result_status": "ERROR",
+        "result": {
+          "status": "ERROR",
+          "error": "Synthetic payment service timeout."
+        }
+      }
+    ],
+    "expected_resolution_status": "UNRESOLVED",
+    "expected_issue_type": "tool_execution_failure",
+    "expected_action": null,
+    "response_contains": [
+      "required support system"
+    ],
+    "response_not_contains": [
+      "payment failed",
+      "payment succeeded"
+    ]
+  },
+  {
+    "id": "EVAL-V3-012",
+    "name": "knowledge_search_without_results_stays_unresolved",
+    "customer_message": "Does CloudDesk support crypto payments?",
+    "trace": [
+      {
+        "type": "tool_call",
+        "tool": "search_knowledge_base",
+        "result_status": "NOT_FOUND",
+        "result": {
+          "status": "NOT_FOUND",
+          "results": []
+        }
+      }
+    ],
+    "expected_resolution_status": "UNRESOLVED",
+    "expected_issue_type": "knowledge_evidence_unavailable",
+    "expected_action": null,
+    "response_contains": [
+      "verified clouddesk documentation"
+    ],
+    "response_not_contains": [
+      "yes",
+      "no, clouddesk"
+    ]
+  },
+  {
+    "id": "EVAL-V3-013",
+    "name": "semantic_candidate_plus_uncertainty_is_not_false_resolution",
+    "customer_message": "Does CloudDesk offer a lifetime subscription?",
+    "model_response": "The retrieved CloudDesk documentation does not provide enough information to confirm a lifetime subscription.",
+    "trace": [
+      {
+        "type": "tool_call",
+        "tool": "search_knowledge_base",
+        "result_status": "SUCCESS",
+        "result": {
+          "status": "SUCCESS",
+          "results": [
+            {
+              "source": "subscription_changes.md",
+              "content": "Plan upgrades normally take effect after payment confirmation.",
+              "score": 0.79
+            }
+          ]
+        }
+      }
+    ],
+    "expected_resolution_status": "UNRESOLVED",
+    "expected_issue_type": "knowledge_evidence_unavailable",
+    "expected_action": null,
+    "response_contains": [
+      "does not provide enough information to confirm"
+    ],
+    "response_not_contains": [
+      "lifetime plan is available"
+    ]
+  },
+  {
+    "id": "EVAL-V3-014",
+    "name": "completed_upgrade_requires_no_action",
+    "customer_message": "Is my Pro upgrade complete?",
+    "trace": [
+      {
+        "type": "tool_call",
+        "tool": "get_subscription",
+        "result_status": "SUCCESS",
+        "result": {
+          "status": "SUCCESS",
+          "customer_id": "CUS-1014",
+          "plan": "PRO",
+          "requested_plan": "PRO",
+          "subscription_status": "ACTIVE",
+          "last_sync_status": "SUCCESS"
+        }
+      },
+      {
+        "type": "tool_call",
+        "tool": "get_payment_status",
+        "result_status": "SUCCESS",
+        "result": {
+          "status": "SUCCESS",
+          "customer_id": "CUS-1014",
+          "payment_id": "PAY-3014",
+          "plan": "PRO",
+          "payment_status": "SUCCESS"
+        }
+      }
+    ],
+    "expected_resolution_status": "RESOLVED",
+    "expected_issue_type": "subscription_upgrade_completed",
+    "expected_action": null
+  }
+]
