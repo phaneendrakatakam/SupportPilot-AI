@@ -210,6 +210,91 @@
 
 
                 <section
+                    class="mobile-context"
+                    aria-label="Support context"
+                >
+                    <div class="mobile-account">
+                        <div class="mobile-context-title">
+                            YOUR ACCOUNT
+                        </div>
+
+                        <label
+                            class="visually-hidden"
+                            for="mobile-customer-id"
+                        >
+                            Customer ID
+                        </label>
+
+                        <input
+                            id="mobile-customer-id"
+                            class="mobile-customer-input"
+                            type="text"
+                            value="CUS-1007"
+                            placeholder="CUS-1007"
+                            autocomplete="off"
+                            spellcheck="false"
+                            aria-label="Customer ID"
+                        >
+                    </div>
+
+                    <div
+                        id="mobile-case-card"
+                        class="case-card neutral mobile-case-card"
+                    >
+                        <div class="mobile-context-title">
+                            CURRENT CASE
+                        </div>
+
+                        <strong id="mobile-case-title">
+                            No active case
+                        </strong>
+
+                        <span id="mobile-case-copy">
+                            Ask a support question to get started.
+                        </span>
+
+                        <div
+                            id="mobile-case-progress"
+                            class="case-progress"
+                            aria-hidden="true"
+                        >
+                            <span id="mobile-progress1"></span>
+                            <span id="mobile-progress2"></span>
+                            <span id="mobile-progress3"></span>
+                        </div>
+                    </div>
+
+                    <div class="mobile-help">
+                        <div class="mobile-context-title">
+                            POPULAR HELP
+                        </div>
+
+                        <div class="mobile-help-grid">
+                            <button class="quick" data-message="What subscription plan am I currently on?" type="button">
+                                <strong>My subscription</strong>
+                                <small>Plan, upgrade and billing</small>
+                            </button>
+
+                            <button class="quick" data-message="I paid for Pro, but my account still shows Basic. What happened?" type="button">
+                                <strong>Payment issue</strong>
+                                <small>Charges and payment status</small>
+                            </button>
+
+                            <button class="quick" data-message="Is the CloudDesk core service currently down in the EU region?" type="button">
+                                <strong>Service status</strong>
+                                <small>Check CloudDesk availability</small>
+                            </button>
+
+                            <button class="quick" data-message="What is CloudDesk's refund policy?" type="button">
+                                <strong>Refunds</strong>
+                                <small>Policy and refund requests</small>
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+
+                <section
                     id="status-card"
                     class="status-card"
                     hidden

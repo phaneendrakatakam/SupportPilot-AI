@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     embedding_dimensions: int = 768
     knowledge_min_score: float = 0.55
     max_agent_steps: int = 5
+    operator_username: str | None = None
+    operator_password: str | None = None
 
     model_config = SettingsConfigDict(
         env_file=".env",
