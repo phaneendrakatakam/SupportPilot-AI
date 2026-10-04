@@ -532,6 +532,69 @@ a:focus-visible {
 }
 
 
+.mobile-context {
+    display: none;
+}
+
+
+.mobile-context-title {
+    margin-bottom: 7px;
+
+    color: #64728b;
+
+    font-size: 9.5px;
+    font-weight: 850;
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+}
+
+
+.mobile-customer-input {
+    width: 100%;
+    height: 38px;
+    padding: 0 11px;
+
+    color: var(--text);
+
+    font-size: 12px;
+    font-weight: 750;
+
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    outline: 0;
+
+    background: var(--surface-soft);
+}
+
+
+.mobile-customer-input:focus {
+    border-color: #cbd5f5;
+    background: #ffffff;
+}
+
+
+.mobile-case-card {
+    margin: 0;
+}
+
+
+.mobile-case-card .mobile-context-title {
+    margin-bottom: 8px;
+}
+
+
+.mobile-help-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+}
+
+
+.mobile-help-grid .quick {
+    margin-top: 0;
+}
+
+
 .main {
     min-height: 720px;
 
@@ -1165,6 +1228,31 @@ a:focus-visible {
     .main {
         min-height: 760px;
     }
+
+    .mobile-context {
+        display: grid;
+        grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+        gap: 10px;
+        padding: 12px 12px 0;
+    }
+
+    .mobile-account,
+    .mobile-case-card,
+    .mobile-help {
+        min-width: 0;
+        padding: 12px;
+        border: 1px solid var(--border);
+        border-radius: 13px;
+        background: rgba(248, 250, 255, 0.78);
+    }
+
+    .mobile-help {
+        grid-column: 1 / -1;
+    }
+
+    .mobile-help-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
 }
 
 
@@ -1198,6 +1286,25 @@ a:focus-visible {
         display: none;
     }
 
+    .mobile-context {
+        grid-template-columns: 1fr;
+        padding: 10px 10px 0;
+        gap: 8px;
+    }
+
+    .mobile-help {
+        grid-column: auto;
+    }
+
+    .mobile-help-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 6px;
+    }
+
+    .mobile-help-grid .quick {
+        padding: 9px;
+    }
+
     .status-card {
         margin-left: 12px;
         margin-right: 12px;
@@ -1206,6 +1313,14 @@ a:focus-visible {
 
     .chat {
         padding: 20px 13px 12px;
+    }
+
+    .ai-wrap {
+        max-width: 100%;
+    }
+
+    .bubble {
+        max-width: 100%;
     }
 
     .customer-summary {

@@ -23,6 +23,41 @@ const customerIdInput =
         "customer-id"
     );
 
+const mobileCustomerIdInput =
+    document.getElementById(
+        "mobile-customer-id"
+    );
+
+const mobileCaseCard =
+    document.getElementById(
+        "mobile-case-card"
+    );
+
+const mobileCaseTitle =
+    document.getElementById(
+        "mobile-case-title"
+    );
+
+const mobileCaseCopy =
+    document.getElementById(
+        "mobile-case-copy"
+    );
+
+const mobileProgress1 =
+    document.getElementById(
+        "mobile-progress1"
+    );
+
+const mobileProgress2 =
+    document.getElementById(
+        "mobile-progress2"
+    );
+
+const mobileProgress3 =
+    document.getElementById(
+        "mobile-progress3"
+    );
+
 const chatMessages =
     document.getElementById(
         "chat-messages"
@@ -1050,6 +1085,9 @@ function setCaseProgress(
         progress1,
         progress2,
         progress3,
+        mobileProgress1,
+        mobileProgress2,
+        mobileProgress3,
     ].forEach(
         (
             item,
@@ -1114,6 +1152,15 @@ function setCaseMode(
         sideTitle;
 
     sideCaseCopy.textContent =
+        sideCopy;
+
+    mobileCaseCard.className =
+        `case-card ${mode === "neutral" ? "neutral" : mode} mobile-case-card`;
+
+    mobileCaseTitle.textContent =
+        sideTitle;
+
+    mobileCaseCopy.textContent =
         sideCopy;
 
     setCaseProgress(
@@ -1872,6 +1919,9 @@ async function restoreConversation() {
     if (storedCustomerId) {
         customerIdInput.value =
             storedCustomerId;
+
+        mobileCustomerIdInput.value =
+            storedCustomerId;
     }
 
     if (!storedConversationId) {
@@ -1927,6 +1977,9 @@ async function restoreConversation() {
 
         if (data.customer_id) {
             customerIdInput.value =
+                data.customer_id;
+
+            mobileCustomerIdInput.value =
                 data.customer_id;
         }
 
@@ -2262,28 +2315,65 @@ newConversationButton.addEventListener(
 );
 
 
+function syncCustomerIdInputs(
+    source
+) {
+    const nextCustomerId =
+        source.value.trim();
+
+    customerIdInput.value =
+        nextCustomerId;
+
+    mobileCustomerIdInput.value =
+        nextCustomerId;
+}
+
+
+function handleCustomerIdChange(
+    source
+) {
+    const storedCustomerId =
+        localStorage.getItem(
+            CUSTOMER_STORAGE_KEY
+        );
+
+    const nextCustomerId =
+        source.value.trim();
+
+    syncCustomerIdInputs(
+        source
+    );
+
+    if (
+        conversationId
+        && storedCustomerId
+        && nextCustomerId
+        && nextCustomerId
+            !== storedCustomerId
+    ) {
+        clearSessionState();
+        resetChatToWelcome();
+        showNoActiveCase();
+    }
+}
+
+
 customerIdInput.addEventListener(
     "change",
     () => {
-        const storedCustomerId =
-            localStorage.getItem(
-                CUSTOMER_STORAGE_KEY
-            );
+        handleCustomerIdChange(
+            customerIdInput
+        );
+    }
+);
 
-        const nextCustomerId =
-            customerIdInput.value.trim();
 
-        if (
-            conversationId
-            && storedCustomerId
-            && nextCustomerId
-            && nextCustomerId
-                !== storedCustomerId
-        ) {
-            clearSessionState();
-            resetChatToWelcome();
-            showNoActiveCase();
-        }
+mobileCustomerIdInput.addEventListener(
+    "change",
+    () => {
+        handleCustomerIdChange(
+            mobileCustomerIdInput
+        );
     }
 );
 
