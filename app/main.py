@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -11,6 +11,7 @@ from app.api.health import router as health_router
 from app.api.support import router as support_router
 from app.config import settings
 from app.db.schema import ensure_schema
+from app.security.operator import require_operator
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -46,11 +47,11 @@ def support_ui() -> FileResponse:
     return FileResponse(TEMPLATES_DIR / "index.html")
 
 
-@app.get("/operations", include_in_schema=False)
+@app.get("/operations", include_in_schema=False, dependencies=[Depends(require_operator)])
 def operations_ui() -> FileResponse:
     return FileResponse(TEMPLATES_DIR / "operations.html")
 
 
-@app.get("/debug", include_in_schema=False)
+@app.get("/debug", include_in_schema=False, dependencies=[Depends(require_operator)])
 def debug_ui() -> FileResponse:
     return FileResponse(TEMPLATES_DIR / "debug.html")

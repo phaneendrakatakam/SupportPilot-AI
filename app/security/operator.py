@@ -1,6 +1,8 @@
 from secrets import compare_digest
 
-from fastapi import HTTPException, status
+from fastapi import Depends, HTTPException, status
+
+from app.config import settings
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
 
@@ -33,3 +35,14 @@ def validate_operator(
             detail="Invalid operator credentials.",
             headers={"WWW-Authenticate": "Basic"},
         )
+
+
+def require_operator(
+    credentials: HTTPBasicCredentials = Depends(security),
+) -> None:
+    """Authorize operator-only pages and APIs using configured credentials."""
+    validate_operator(
+        credentials,
+        settings.operator_username,
+        settings.operator_password,
+    )

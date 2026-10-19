@@ -18,6 +18,7 @@ from app.main import app
 
 
 client = TestClient(app)
+client.auth = ("test-operator", "test-password")
 
 
 def test_operator_queue_collapses_old_equivalent_pending_duplicates() -> None:

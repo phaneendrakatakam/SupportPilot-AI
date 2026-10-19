@@ -4,6 +4,7 @@ from app.main import app
 
 
 client = TestClient(app)
+client.auth = ("test-operator", "test-password")
 
 
 def test_customer_ui_is_available() -> None:

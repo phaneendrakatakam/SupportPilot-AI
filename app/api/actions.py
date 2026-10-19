@@ -1,7 +1,7 @@
 import json
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 
 from app.actions.schemas import (
@@ -23,6 +23,7 @@ from app.db.models import (
 )
 from app.db.schema import ensure_schema
 from app.db.session import SessionLocal
+from app.security.operator import require_operator
 from app.services.customer_case import (
     persist_verified_customer_outcome,
 )
@@ -31,6 +32,7 @@ from app.services.customer_case import (
 router = APIRouter(
     prefix="/api/v1/actions",
     tags=["actions"],
+    dependencies=[Depends(require_operator)],
 )
 
 

@@ -18,6 +18,7 @@ from app.main import app
 
 
 client = TestClient(app)
+client.auth = ("test-operator", "test-password")
 
 
 def create_queue_context():

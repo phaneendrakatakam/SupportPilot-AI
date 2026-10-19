@@ -8,6 +8,7 @@ from app.db.session import SessionLocal
 from app.main import app
 
 client = TestClient(app)
+client.auth = ("test-operator", "test-password")
 
 
 def _create_run() -> tuple[str, str]:

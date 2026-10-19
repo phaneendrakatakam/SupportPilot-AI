@@ -21,6 +21,7 @@ from app.main import app
 
 
 client = TestClient(app)
+client.auth = ("test-operator", "test-password")
 
 
 def test_rejected_retry_falls_back_to_human_controlled_support_ticket() -> None:

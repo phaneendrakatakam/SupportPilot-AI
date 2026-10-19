@@ -2,7 +2,7 @@ import json
 from datetime import datetime
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import select
 
@@ -17,11 +17,13 @@ from app.db.models import (
 )
 from app.db.schema import ensure_schema
 from app.db.session import SessionLocal
+from app.security.operator import require_operator
 
 
 router = APIRouter(
     prefix="/api/v1/debug",
     tags=["debug"],
+    dependencies=[Depends(require_operator)],
 )
 
 

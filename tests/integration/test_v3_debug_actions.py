@@ -13,6 +13,7 @@ from app.main import app
 
 
 client = TestClient(app)
+client.auth = ("test-operator", "test-password")
 
 
 def test_debug_run_exposes_v3_action_proposal() -> None:
