@@ -10,7 +10,12 @@ The project evolved across three major versions:
 **V2 — Investigate + Resolve**  
 **V3 — Investigate + Recommend + Approve + Act + Verify**
 
-V3 is the final major version of SupportPilot AI.
+V3 is the final major version of SupportPilot AI. The application is also deployed as a hosted portfolio demonstration on Render Free, backed by Neon PostgreSQL and integrated with Google Gemini.
+
+**Live application:** https://supportpilot-ai-ggsl.onrender.com/  
+**Repository:** https://github.com/phaneendrakatakam/SupportPilot-AI  
+**Hosting:** Render Free (Python / FastAPI)  
+**Database:** Neon PostgreSQL
 
 ---
 
@@ -550,7 +555,8 @@ V3 was validated through automated regression testing, deterministic evaluation,
 
 | Validation | Result |
 |---|---:|
-| Automated pytest suite | **144 / 144 PASS** |
+| V3 release automated pytest suite | **144 / 144 PASS** |
+| Later deployment regression suite | **161 PASS** |
 | Formal deterministic V3 evaluation | **14 / 14 PASS** |
 | Security / repository audit | **18 / 18 PASS** |
 | Final flagship manual E2E workflows | **3 / 3 PASS** |
@@ -709,12 +715,66 @@ SupportPilot-AI/
 
 ---
 
+# Hosted Deployment
+
+**Live URL:** [https://supportpilot-ai-ggsl.onrender.com/](https://supportpilot-ai-ggsl.onrender.com/)
+
+SupportPilot AI is hosted as a **Render Free Python web service** with a **Neon PostgreSQL** database and **Google Gemini** for AI-assisted investigation. The existing FastAPI application serves the customer, operations, and engineering interfaces.
+
+| Component | Hosted setup |
+|---|---|
+| Web application | Render Free (FastAPI / Python) |
+| Relational persistence | Neon PostgreSQL |
+| AI investigation | Google Gemini |
+| Customer interface | `/` |
+| Operations interface | `/operations` (Basic Authentication) |
+| Engineering inspector | `/debug` (technical interface; access should be restricted) |
+
+### Hosted architecture
+
+```mermaid
+flowchart TB
+    B[Browser] --> R[Render Free: FastAPI + UI]
+    R --> N[(Neon PostgreSQL)]
+    R --> G[Google Gemini API]
+    R --> K[Application Knowledge Base]
+```
+
+### Deployment configuration
+
+The Render service is connected to the GitHub repository and deploys the FastAPI application from the configured branch. It installs Python dependencies from `requirements.txt` and runs the application with a Uvicorn web process bound to Render's assigned port.
+
+Configuration values are supplied through Render environment variables rather than committed to the repository. Relevant application settings include:
+
+| Variable | Purpose |
+|---|---|
+| `APP_ENV` | Selects the application environment |
+| `DATABASE_URL` | Neon PostgreSQL connection URL; keep private |
+| `GEMINI_API_KEY` | Gemini API credential; keep private |
+| `GEMINI_MODEL` | Configured Gemini model |
+| `GEMINI_EMBEDDING_MODEL` | Configured embedding model |
+| `EMBEDDING_DIMENSIONS` | Embedding dimension configuration |
+| `KNOWLEDGE_MIN_SCORE` | Retrieval relevance threshold |
+| `MAX_AGENT_STEPS` | Agent investigation limit |
+
+The exact set of required settings should be checked against the current application's configuration and the Render service before reproducing the deployment. **Never commit `.env`, credentials, or operator authentication secrets.**
+
+### Free-tier and demo limitations
+
+- Render Free may suspend an idle instance, so the first request after inactivity can take longer.
+- Neon Free is subject to provider usage and resource limits.
+- The data and support actions are simulated; the hosted app does not process real refunds or integrate with live billing systems.
+- The Operations workspace is protected with Basic Authentication. Do not publish its credentials or treat it as enterprise-grade operator access.
+- This deployment demonstrates application availability and integration, not production hardening or an uptime guarantee.
+
+---
+
 # Running SupportPilot AI Locally
 
 ## 1. Clone the Repository
 
 ```powershell
-git clone <repository-url>
+git clone https://github.com/phaneendrakatakam/SupportPilot-AI.git
 cd SupportPilot-AI
 ```
 
@@ -798,11 +858,7 @@ http://127.0.0.1:8000/debug
 pytest
 ```
 
-Current V3 baseline:
-
-```text
-144 passed
-```
+The original V3 release baseline was **144 passing tests**. The later deployment regression run reported **161 passing tests**. The formal V3 evaluation, security audit, and manual workflow results above describe their respective historical validation runs.
 
 ---
 
@@ -894,9 +950,9 @@ The project does not connect to real:
 - CRM platforms
 - production support systems
 
-Controlled actions modify only the project's local simulated business state.
+Controlled actions modify only the project's **simulated business state**, persisted in the configured PostgreSQL database. Hosting the demo does not turn these simulated operations into real customer, payment, or refund integrations.
 
-Production concerns such as enterprise authentication, authorization/RBAC, external system integration, deployment infrastructure, rate limiting and production observability would require additional implementation before real-world use.
+The hosted Operations workspace uses Basic Authentication; this is not a substitute for enterprise identity management and role-based access control. Additional safeguards, external-system integrations, rate limiting, and production observability would be required before real-world customer use.
 
 ---
 
@@ -906,7 +962,8 @@ Production concerns such as enterprise authentication, authorization/RBAC, exter
 SupportPilot AI V3
 FINAL MAJOR VERSION
 
-Automated Tests            144 / 144 PASS
+V3 Release Tests           144 / 144 PASS
+Deployment Regression       161 PASS
 Formal Evaluation           14 / 14 PASS
 Security Audit              18 / 18 PASS
 Manual E2E                   3 / 3 PASS
@@ -915,7 +972,7 @@ UI Review                         PASS
 
 **SupportPilot AI V3 is feature-complete as a portfolio project.**
 
-Deployment is intentionally treated as a separate future exercise rather than part of the V3 application milestone.
+The application has subsequently been deployed on Render Free with Neon PostgreSQL. The deployment is a hosted **portfolio demonstration**, not a commercial customer-support service.
 
 ---
 
